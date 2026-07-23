@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useCategories } from '../hooks/useCategories'
 import { useTags } from '../hooks/useTags'
 import { useTransactions } from '../hooks/useTransactions'
 import { today } from '../lib/recurrence'
+import { downloadCsv, parseCsv, toCsv } from '../lib/csv'
+import { supabase } from '../lib/supabaseClient'
 
 const emptyForm = {
   type: 'expense',
@@ -217,11 +219,14 @@ export default function Transactions() {
     updateTransaction,
     deleteTransaction,
     stopRecurring,
+    refresh,
   } = useTransactions()
 
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [scopeFilter, setScopeFilter] = useState('all')
+  const [importMessage, setImportMessage] = useState('')
+  const fileInputRef = useRef(null)
 
   const filtered = useMemo(() => {
     if (scopeFilter === 'personal') return transactions.filter((t) => !t.is_shared)
@@ -270,20 +275,120 @@ export default function Transactions() {
     setFormOpen(false)
   }
 
+  function handleExport() {
+    const headers = ['datum', 'type', 'bedrag', 'omschrijving', 'categorie', 'scope', 'tags']
+    const rows = transactions.map((t) => [
+      t.occurred_on,
+      t.type,
+      t.amount,
+      t.description || '',
+      t.category?.name || '',
+      t.is_shared ? 'gedeeld' : 'persoonlijk',
+      (t.transaction_tags || []).map((tt) => tt.tags?.name).filter(Boolean).join(';'),
+    ])
+    downloadCsv(`transacties-${today()}.csv`, toCsv(headers, rows))
+  }
+
+  async function handleImportFile(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+
+    const text = await file.text()
+    const rows = parseCsv(text)
+    if (rows.length === 0) {
+      setImportMessage('Leeg of ongeldig bestand.')
+      return
+    }
+
+    const header = rows[0].map((h) => h.trim().toLowerCase())
+    const dataRows = rows.slice(1)
+
+    const idx = {
+      datum: header.indexOf('datum'),
+      type: header.indexOf('type'),
+      bedrag: header.indexOf('bedrag'),
+      omschrijving: header.indexOf('omschrijving'),
+      categorie: header.indexOf('categorie'),
+      scope: header.indexOf('scope'),
+      tags: header.indexOf('tags'),
+    }
+
+    if (idx.datum === -1 || idx.type === -1 || idx.bedrag === -1) {
+      setImportMessage('CSV mist verplichte kolommen (datum, type, bedrag).')
+      return
+    }
+
+    let imported = 0
+    let skipped = 0
+
+    for (const row of dataRows) {
+      const amount = Number(row[idx.bedrag])
+      const type = row[idx.type]?.trim()
+      const occurredOn = row[idx.datum]?.trim()
+      if (!amount || amount <= 0 || (type !== 'income' && type !== 'expense') || !occurredOn) {
+        skipped += 1
+        continue
+      }
+      const categoryName = idx.categorie !== -1 ? row[idx.categorie]?.trim() : ''
+      const category = categories.find((c) => c.name === categoryName)
+      const isShared = idx.scope !== -1 && row[idx.scope]?.trim().toLowerCase() === 'gedeeld'
+
+      const { error } = await supabase.from('transactions').insert({
+        type,
+        amount,
+        description: idx.omschrijving !== -1 ? row[idx.omschrijving] : '',
+        category_id: category?.id || null,
+        occurred_on: occurredOn,
+        is_shared: isShared,
+      })
+      if (error) skipped += 1
+      else imported += 1
+    }
+
+    setImportMessage(`${imported} transactie(s) geïmporteerd, ${skipped} overgeslagen.`)
+    await refresh()
+  }
+
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold">Transacties</h1>
-        <button
-          onClick={() => {
-            setEditing(null)
-            setFormOpen((v) => !v)
-          }}
-          className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
-        >
-          {formOpen ? 'Sluiten' : '+ Nieuwe transactie'}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={handleExport}
+            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600"
+          >
+            Exporteren (CSV)
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600"
+          >
+            Importeren (CSV)
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            onChange={handleImportFile}
+            className="hidden"
+          />
+          <button
+            onClick={() => {
+              setEditing(null)
+              setFormOpen((v) => !v)
+            }}
+            className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
+          >
+            {formOpen ? 'Sluiten' : '+ Nieuwe transactie'}
+          </button>
+        </div>
       </div>
+
+      {importMessage && (
+        <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">{importMessage}</p>
+      )}
 
       {formOpen && (
         <TransactionForm

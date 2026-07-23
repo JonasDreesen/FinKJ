@@ -14,6 +14,7 @@ import {
 } from 'recharts'
 import { useCategories } from '../hooks/useCategories'
 import { useDashboardData } from '../hooks/useDashboardData'
+import { useUpcomingRecurring } from '../hooks/useUpcomingRecurring'
 import {
   formatMonthLabel,
   formatYearLabel,
@@ -39,6 +40,7 @@ export default function Dashboard() {
   const [categoryId, setCategoryId] = useState('')
 
   const { categories } = useCategories()
+  const { upcoming } = useUpcomingRecurring()
 
   const range = useMemo(() => {
     if (periodType === 'month') {
@@ -68,6 +70,27 @@ export default function Dashboard() {
   return (
     <div>
       <h1 className="mb-4 text-2xl font-semibold">Dashboard</h1>
+
+      {upcoming.length > 0 && (
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
+          <h2 className="mb-2 font-semibold text-amber-800 dark:text-amber-200">
+            Binnenkort verschuldigd
+          </h2>
+          <ul className="space-y-1 text-sm text-amber-900 dark:text-amber-100">
+            {upcoming.map((u) => (
+              <li key={u.id} className="flex items-center justify-between">
+                <span>
+                  {u.description || u.category?.name || '(geen omschrijving)'}
+                  {u.is_shared && ' · gedeeld'}
+                </span>
+                <span>
+                  {formatAmount(u.amount)} — {u.next_due_date}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="flex gap-2 text-sm">

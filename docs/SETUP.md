@@ -62,3 +62,9 @@ Stappen die jij zelf moet doen. Alles wat hier niet staat, is al door mij gerege
 2. Open `docs/sql/phase2_schema.sql` uit deze repo, kopieer de volledige inhoud en plak die in de SQL Editor.
 3. Klik **Run**. Dit maakt de tabellen `categories`, `tags`, `transactions` en `transaction_tags` aan, met Row Level Security zodat persoonlijke transacties enkel voor de eigenaar zichtbaar zijn.
 4. Geen verdere actie nodig — de app praat automatisch met deze tabellen via de al ingestelde Supabase-sleutels.
+
+## Fase 3: database-schema voor budgetten en spaardoelen
+
+1. Ga naar je Supabase project → **SQL Editor** → **New query**.
+2. Open `docs/sql/phase3_schema.sql` uit deze repo, kopieer de volledige inhoud en plak die in de SQL Editor.
+3. Klik **Run**. Dit maakt de tabellen `budgets` en `savings_goals` aan.

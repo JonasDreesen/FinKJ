@@ -55,3 +55,10 @@ Stappen die jij zelf moet doen. Alles wat hier niet staat, is al door mij gerege
 - Log in met een van de twee aangemaakte accounts → je komt in het dashboard met navigatie (Dashboard, Transacties, Budgetten, Instellingen — nog leeg).
 - Probeer een fout wachtwoord → je krijgt een foutmelding, geen toegang.
 - Er is geen "registreren"-link of -knop.
+
+## Fase 2: database-schema voor transacties
+
+1. Ga naar je Supabase project → **SQL Editor** → **New query**.
+2. Open `docs/sql/phase2_schema.sql` uit deze repo, kopieer de volledige inhoud en plak die in de SQL Editor.
+3. Klik **Run**. Dit maakt de tabellen `categories`, `tags`, `transactions` en `transaction_tags` aan, met Row Level Security zodat persoonlijke transacties enkel voor de eigenaar zichtbaar zijn.
+4. Geen verdere actie nodig — de app praat automatisch met deze tabellen via de al ingestelde Supabase-sleutels.

@@ -223,9 +223,9 @@ export default function Budgets() {
       )}
 
       {loading ? (
-        <p className="text-sm text-gray-500">Laden...</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">Laden...</p>
       ) : lines.length === 0 ? (
-        <p className="mb-6 text-sm text-gray-500">Nog geen budgetten ingesteld voor deze maand.</p>
+        <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">Nog geen budgetten ingesteld voor deze maand.</p>
       ) : (
         <ul className="mb-6 space-y-3">
           {lines.map((line) => (
@@ -290,7 +290,7 @@ export default function Budgets() {
       )}
 
       {goals.length === 0 ? (
-        <p className="text-sm text-gray-500">Nog geen spaardoelen.</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">Nog geen spaardoelen.</p>
       ) : (
         <ul className="space-y-3">
           {goals.map((goal) => (

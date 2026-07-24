@@ -145,7 +145,7 @@ export default function Dashboard() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-gray-500">Laden...</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">Laden...</p>
       ) : (
         <>
           <div className="mb-6 grid gap-4 sm:grid-cols-3">
@@ -169,7 +169,7 @@ export default function Dashboard() {
             <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
               <h2 className="mb-3 font-semibold">Uitgaven per categorie</h2>
               {byCategory.length === 0 ? (
-                <p className="text-sm text-gray-500">Geen uitgaven in deze periode.</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Geen uitgaven in deze periode.</p>
               ) : (
                 <div style={{ width: '100%', height: 260 }}>
                   <ResponsiveContainer>

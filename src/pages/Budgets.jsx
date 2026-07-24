@@ -3,6 +3,7 @@ import { useCategories } from '../hooks/useCategories'
 import { useBudgets } from '../hooks/useBudgets'
 import { useSavingsGoals } from '../hooks/useSavingsGoals'
 import { monthStart, shiftMonth, formatMonthLabel } from '../lib/month'
+import { friendlyError } from '../lib/errors'
 
 function formatAmount(amount) {
   return new Intl.NumberFormat('nl-BE', { style: 'currency', currency: 'EUR' }).format(amount)
@@ -29,7 +30,7 @@ function BudgetForm({ categories, onSubmit, onCancel }) {
     }
     const { error } = await onSubmit({ categoryId, amount: Number(amount), isShared, rollover })
     if (error) {
-      setError('Opslaan mislukt (bestaat er al een budget voor deze categorie deze maand?)')
+      setError(friendlyError(error, 'Opslaan mislukt (bestaat er al een budget voor deze categorie deze maand?)'))
     }
   }
 
@@ -101,7 +102,7 @@ function GoalForm({ onSubmit, onCancel }) {
       return
     }
     const { error } = await onSubmit({ name: name.trim(), targetAmount: Number(targetAmount), isShared, targetDate })
-    if (error) setError('Opslaan mislukt.')
+    if (error) setError(friendlyError(error, 'Opslaan mislukt.'))
   }
 
   return (

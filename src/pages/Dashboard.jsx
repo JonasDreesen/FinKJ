@@ -15,6 +15,8 @@ import {
 import { useCategories } from '../hooks/useCategories'
 import { useDashboardData } from '../hooks/useDashboardData'
 import { useUpcomingRecurring } from '../hooks/useUpcomingRecurring'
+import { useSharedBalance } from '../hooks/useSharedBalance'
+import { useAuth } from '../context/AuthContext'
 import {
   formatMonthLabel,
   formatYearLabel,
@@ -39,8 +41,10 @@ export default function Dashboard() {
   const [scopeFilter, setScopeFilter] = useState('all')
   const [categoryId, setCategoryId] = useState('')
 
+  const { session } = useAuth()
   const { categories } = useCategories()
   const { upcoming } = useUpcomingRecurring()
+  const { balance: sharedBalance } = useSharedBalance(session?.user?.id)
 
   const range = useMemo(() => {
     if (periodType === 'month') {
@@ -69,10 +73,21 @@ export default function Dashboard() {
 
   return (
     <div>
-      <h1 className="mb-4 text-2xl font-semibold">Dashboard</h1>
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Dashboard</h1>
+        <button
+          onClick={() => window.print()}
+          className="no-print rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600"
+        >
+          Afdrukken / PDF
+        </button>
+      </div>
+      <p className="mb-4 hidden print:block text-lg font-semibold capitalize">
+        Overzicht {periodLabel}
+      </p>
 
       {upcoming.length > 0 && (
-        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
+        <div className="no-print mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
           <h2 className="mb-2 font-semibold text-amber-800 dark:text-amber-200">
             Binnenkort verschuldigd
           </h2>
@@ -92,7 +107,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="no-print mb-4 flex flex-wrap items-center gap-3">
         <div className="flex gap-2 text-sm">
           {[
             { key: 'month', label: 'Maand' },
@@ -164,6 +179,15 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+
+          {Math.abs(sharedBalance) >= 0.01 && (
+            <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 text-sm dark:border-gray-700 dark:bg-gray-800">
+              <span className="font-semibold">Gedeelde balans: </span>
+              {sharedBalance > 0
+                ? `je partner is jou ${formatAmount(sharedBalance)} verschuldigd (jij hebt meer voorgeschoten aan gedeelde uitgaven).`
+                : `jij bent je partner ${formatAmount(Math.abs(sharedBalance))} verschuldigd (je partner heeft meer voorgeschoten aan gedeelde uitgaven).`}
+            </div>
+          )}
 
           <div className="mb-6 grid gap-4 lg:grid-cols-2">
             <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">

@@ -29,7 +29,7 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+      <header className="no-print border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
           <span className="font-semibold">Budget Planner</span>
 

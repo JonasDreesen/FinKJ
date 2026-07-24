@@ -376,6 +376,7 @@ export default function Transactions() {
     updateTransaction,
     deleteTransaction,
     stopRecurring,
+    confirmPendingReview,
     refresh,
   } = useTransactions()
 
@@ -385,6 +386,8 @@ export default function Transactions() {
   const [formKey, setFormKey] = useState(0)
   const [editing, setEditing] = useState(null)
   const [scopeFilter, setScopeFilter] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortBy, setSortBy] = useState('date-desc')
   const [importMessage, setImportMessage] = useState('')
   const fileInputRef = useRef(null)
   const [recurringEditingId, setRecurringEditingId] = useState(null)
@@ -403,11 +406,28 @@ export default function Transactions() {
     setFormOpen(true)
   }
 
+  const pendingReview = useMemo(
+    () => transactions.filter((t) => t.pending_review),
+    [transactions],
+  )
+
   const filtered = useMemo(() => {
-    if (scopeFilter === 'personal') return transactions.filter((t) => !t.is_shared)
-    if (scopeFilter === 'shared') return transactions.filter((t) => t.is_shared)
-    return transactions
-  }, [transactions, scopeFilter])
+    let result = transactions
+    if (scopeFilter === 'personal') result = result.filter((t) => !t.is_shared)
+    if (scopeFilter === 'shared') result = result.filter((t) => t.is_shared)
+
+    const query = searchQuery.trim().toLowerCase()
+    if (query) {
+      result = result.filter((t) => (t.description || '').toLowerCase().includes(query))
+    }
+
+    const sorted = [...result]
+    if (sortBy === 'date-desc') sorted.sort((a, b) => b.occurred_on.localeCompare(a.occurred_on))
+    if (sortBy === 'date-asc') sorted.sort((a, b) => a.occurred_on.localeCompare(b.occurred_on))
+    if (sortBy === 'amount-desc') sorted.sort((a, b) => Number(b.amount) - Number(a.amount))
+    if (sortBy === 'amount-asc') sorted.sort((a, b) => Number(a.amount) - Number(b.amount))
+    return sorted
+  }, [transactions, scopeFilter, searchQuery, sortBy])
 
   async function handleAdd(form) {
     const result = await addTransaction({
@@ -440,6 +460,7 @@ export default function Transactions() {
         occurred_on: form.occurredOn,
         is_shared: form.isShared,
         receipt_path: form.receiptPath || null,
+        pending_review: false,
       },
       form.tagIds,
     )
@@ -583,6 +604,38 @@ export default function Transactions() {
         <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">{importMessage}</p>
       )}
 
+      {pendingReview.length > 0 && (
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
+          <h2 className="mb-2 font-semibold text-amber-800 dark:text-amber-200">
+            Te bevestigen ({pendingReview.length})
+          </h2>
+          <p className="mb-2 text-xs text-amber-800 dark:text-amber-200">
+            Automatisch aangemaakt vanuit een terugkerende reeks. Controleer het bedrag en
+            bevestig, of pas aan indien het deze keer afwijkt.
+          </p>
+          <ul className="space-y-1">
+            {pendingReview.map((t) => (
+              <li key={t.id} className="flex items-center justify-between text-sm text-amber-900 dark:text-amber-100">
+                <span>
+                  {t.description || '(geen omschrijving)'} — {formatAmount(t.amount)} ({t.occurred_on})
+                </span>
+                <span className="flex gap-2">
+                  <button onClick={() => startEdit(t)} className="text-xs text-blue-600 hover:underline">
+                    Aanpassen
+                  </button>
+                  <button
+                    onClick={() => confirmPendingReview(t.id)}
+                    className="text-xs text-green-700 hover:underline dark:text-green-400"
+                  >
+                    Bevestigen
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {formOpen && (
         <TransactionForm
           key={formKey}
@@ -665,7 +718,7 @@ export default function Transactions() {
         </div>
       )}
 
-      <div className="mb-3 flex gap-2 text-sm">
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
         {[
           { key: 'all', label: 'Alles' },
           { key: 'personal', label: 'Persoonlijk' },
@@ -683,6 +736,22 @@ export default function Transactions() {
             {opt.label}
           </button>
         ))}
+        <input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Zoeken op omschrijving..."
+          className="rounded-md border border-gray-300 px-3 py-1 text-sm dark:border-gray-600 dark:bg-gray-700"
+        />
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          className="rounded-md border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700"
+        >
+          <option value="date-desc">Datum (nieuw → oud)</option>
+          <option value="date-asc">Datum (oud → nieuw)</option>
+          <option value="amount-desc">Bedrag (hoog → laag)</option>
+          <option value="amount-asc">Bedrag (laag → hoog)</option>
+        </select>
       </div>
 
       {loading ? (
@@ -709,6 +778,11 @@ export default function Transactions() {
                   {t.parent_transaction_id && (
                     <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-900 dark:text-amber-200">
                       Terugkerend
+                    </span>
+                  )}
+                  {t.pending_review && (
+                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700 dark:bg-red-900 dark:text-red-200">
+                      Te bevestigen
                     </span>
                   )}
                 </div>

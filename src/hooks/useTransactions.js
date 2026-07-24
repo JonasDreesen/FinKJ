@@ -36,6 +36,7 @@ async function generateDueRecurring() {
         occurred_on: due,
         is_recurring: false,
         parent_transaction_id: tmpl.id,
+        pending_review: true,
       })
       due = addInterval(due, tmpl.recurrence_interval)
       iterations += 1
@@ -153,6 +154,15 @@ export function useTransactions() {
     return { error }
   }
 
+  async function confirmPendingReview(id) {
+    const { error } = await supabase
+      .from('transactions')
+      .update({ pending_review: false })
+      .eq('id', id)
+    if (!error) await refresh()
+    return { error }
+  }
+
   return {
     transactions,
     recurringTemplates,
@@ -161,5 +171,7 @@ export function useTransactions() {
     updateTransaction,
     deleteTransaction,
     stopRecurring,
+    confirmPendingReview,
+    refresh,
   }
 }

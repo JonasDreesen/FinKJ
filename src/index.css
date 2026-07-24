@@ -10,3 +10,15 @@ html {
 html.dark {
   color-scheme: dark;
 }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: white !important;
+    color: black !important;
+  }
+}

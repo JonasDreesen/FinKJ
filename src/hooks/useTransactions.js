@@ -90,6 +90,7 @@ export function useTransactions() {
     isRecurring,
     recurrenceInterval,
     recurrenceEndDate,
+    receiptPath,
   }) {
     const payload = {
       type,
@@ -102,6 +103,7 @@ export function useTransactions() {
       recurrence_interval: isRecurring ? recurrenceInterval : null,
       recurrence_end_date: isRecurring ? recurrenceEndDate || null : null,
       next_due_date: isRecurring ? occurredOn : null,
+      receipt_path: isRecurring ? null : receiptPath || null,
     }
 
     const { data, error } = await supabase

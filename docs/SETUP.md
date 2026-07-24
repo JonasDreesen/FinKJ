@@ -68,3 +68,9 @@ Stappen die jij zelf moet doen. Alles wat hier niet staat, is al door mij gerege
 1. Ga naar je Supabase project → **SQL Editor** → **New query**.
 2. Open `docs/sql/phase3_schema.sql` uit deze repo, kopieer de volledige inhoud en plak die in de SQL Editor.
 3. Klik **Run**. Dit maakt de tabellen `budgets` en `savings_goals` aan.
+
+## Extra: bonnetje-foto's bij transacties
+
+1. Ga naar je Supabase project → **SQL Editor** → **New query**.
+2. Open `docs/sql/phase5_receipts.sql` uit deze repo, kopieer de volledige inhoud en plak die in de SQL Editor.
+3. Klik **Run**. Dit voegt een `receipt_path` kolom toe aan transacties en maakt een privé opslagruimte (`receipts`) aan voor de foto's.

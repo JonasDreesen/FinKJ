@@ -6,6 +6,8 @@ import { today } from '../lib/recurrence'
 import { downloadCsv, parseCsv, toCsv } from '../lib/csv'
 import { supabase } from '../lib/supabaseClient'
 import { resizeImage } from '../lib/image'
+import { useTemplates } from '../hooks/useTemplates'
+import { friendlyError } from '../lib/errors'
 
 const emptyForm = {
   type: 'expense',
@@ -42,6 +44,105 @@ async function getReceiptUrl(path) {
 
 function formatAmount(amount) {
   return new Intl.NumberFormat('nl-BE', { style: 'currency', currency: 'EUR' }).format(amount)
+}
+
+function RecurringEditForm({ template, categories, onSubmit, onCancel }) {
+  const [amount, setAmount] = useState(String(template.amount))
+  const [description, setDescription] = useState(template.description || '')
+  const [categoryId, setCategoryId] = useState(template.category_id || '')
+  const [isShared, setIsShared] = useState(template.is_shared)
+  const [recurrenceInterval, setRecurrenceInterval] = useState(template.recurrence_interval)
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState(template.recurrence_end_date || '')
+  const [error, setError] = useState('')
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!amount || Number(amount) <= 0) {
+      setError('Vul een geldig bedrag in.')
+      return
+    }
+    const { error } = await onSubmit({
+      amount: Number(amount),
+      description,
+      category_id: categoryId || null,
+      is_shared: isShared,
+      recurrence_interval: recurrenceInterval,
+      recurrence_end_date: recurrenceEndDate || null,
+    })
+    if (error) setError(friendlyError(error, 'Opslaan mislukt.'))
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="mt-2 space-y-2 rounded-md border border-gray-200 p-3 dark:border-gray-600"
+    >
+      <p className="text-xs text-gray-500 dark:text-gray-400">
+        Wijzigingen gelden voor toekomstige boekingen, niet voor al gegenereerde boekingen.
+      </p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <input
+          type="number"
+          step="0.01"
+          min="0.01"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
+        />
+        <input
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Omschrijving"
+          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
+        />
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <select
+          value={categoryId}
+          onChange={(e) => setCategoryId(e.target.value)}
+          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
+        >
+          <option value="">Geen categorie</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <select
+          value={recurrenceInterval}
+          onChange={(e) => setRecurrenceInterval(e.target.value)}
+          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
+        >
+          <option value="weekly">Wekelijks</option>
+          <option value="monthly">Maandelijks</option>
+          <option value="yearly">Jaarlijks</option>
+        </select>
+      </div>
+      <div>
+        <label className="mb-1 block text-sm">Einddatum (optioneel)</label>
+        <input
+          type="date"
+          value={recurrenceEndDate}
+          onChange={(e) => setRecurrenceEndDate(e.target.value)}
+          className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
+        />
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={isShared} onChange={(e) => setIsShared(e.target.checked)} />
+        Gedeeld
+      </label>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      <div className="flex gap-2">
+        <button type="submit" className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700">
+          Opslaan
+        </button>
+        <button type="button" onClick={onCancel} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600">
+          Annuleren
+        </button>
+      </div>
+    </form>
+  )
 }
 
 function TransactionForm({ initial, categories, tags, onSubmit, onCancel }) {
@@ -88,7 +189,7 @@ function TransactionForm({ initial, categories, tags, onSubmit, onCancel }) {
       return
     }
     const { error } = await onSubmit(form)
-    if (error) setError('Opslaan mislukt. Probeer opnieuw.')
+    if (error) setError(friendlyError(error, 'Opslaan mislukt. Probeer opnieuw.'))
   }
 
   return (
@@ -278,11 +379,29 @@ export default function Transactions() {
     refresh,
   } = useTransactions()
 
+  const { templates } = useTemplates()
   const [formOpen, setFormOpen] = useState(false)
+  const [formSeed, setFormSeed] = useState(emptyForm)
+  const [formKey, setFormKey] = useState(0)
   const [editing, setEditing] = useState(null)
   const [scopeFilter, setScopeFilter] = useState('all')
   const [importMessage, setImportMessage] = useState('')
   const fileInputRef = useRef(null)
+  const [recurringEditingId, setRecurringEditingId] = useState(null)
+
+  function applyTemplate(tpl) {
+    setEditing(null)
+    setFormSeed({
+      ...emptyForm,
+      type: tpl.type,
+      amount: String(tpl.amount),
+      description: tpl.name,
+      categoryId: tpl.category_id || '',
+      isShared: tpl.is_shared,
+    })
+    setFormKey((k) => k + 1)
+    setFormOpen(true)
+  }
 
   const filtered = useMemo(() => {
     if (scopeFilter === 'personal') return transactions.filter((t) => !t.is_shared)
@@ -435,6 +554,8 @@ export default function Transactions() {
           <button
             onClick={() => {
               setEditing(null)
+              setFormSeed(emptyForm)
+              setFormKey((k) => k + 1)
               setFormOpen((v) => !v)
             }}
             className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
@@ -444,13 +565,28 @@ export default function Transactions() {
         </div>
       </div>
 
+      {templates.length > 0 && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {templates.map((tpl) => (
+            <button
+              key={tpl.id}
+              onClick={() => applyTemplate(tpl)}
+              className="rounded-full border border-blue-300 bg-blue-50 px-3 py-1 text-xs text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-200"
+            >
+              ⚡ {tpl.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       {importMessage && (
         <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">{importMessage}</p>
       )}
 
       {formOpen && (
         <TransactionForm
-          initial={emptyForm}
+          key={formKey}
+          initial={formSeed}
           categories={categories}
           tags={tags}
           onSubmit={handleAdd}
@@ -486,19 +622,43 @@ export default function Transactions() {
           <h2 className="mb-2 font-semibold">Actieve terugkerende reeksen</h2>
           <ul className="space-y-1">
             {recurringTemplates.map((tmpl) => (
-              <li key={tmpl.id} className="flex items-center justify-between text-sm">
-                <span>
-                  {tmpl.description || '(geen omschrijving)'} — {formatAmount(tmpl.amount)} (
-                  {tmpl.recurrence_interval === 'weekly' && 'wekelijks'}
-                  {tmpl.recurrence_interval === 'monthly' && 'maandelijks'}
-                  {tmpl.recurrence_interval === 'yearly' && 'jaarlijks'})
-                </span>
-                <button
-                  onClick={() => stopRecurring(tmpl.id)}
-                  className="text-xs text-red-600 hover:underline"
-                >
-                  Stoppen
-                </button>
+              <li key={tmpl.id} className="text-sm">
+                <div className="flex items-center justify-between">
+                  <span>
+                    {tmpl.description || '(geen omschrijving)'} — {formatAmount(tmpl.amount)} (
+                    {tmpl.recurrence_interval === 'weekly' && 'wekelijks'}
+                    {tmpl.recurrence_interval === 'monthly' && 'maandelijks'}
+                    {tmpl.recurrence_interval === 'yearly' && 'jaarlijks'})
+                  </span>
+                  <span className="flex gap-2">
+                    <button
+                      onClick={() =>
+                        setRecurringEditingId((id) => (id === tmpl.id ? null : tmpl.id))
+                      }
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      {recurringEditingId === tmpl.id ? 'Sluiten' : 'Bewerken'}
+                    </button>
+                    <button
+                      onClick={() => stopRecurring(tmpl.id)}
+                      className="text-xs text-red-600 hover:underline"
+                    >
+                      Stoppen
+                    </button>
+                  </span>
+                </div>
+                {recurringEditingId === tmpl.id && (
+                  <RecurringEditForm
+                    template={tmpl}
+                    categories={categories}
+                    onSubmit={async (fields) => {
+                      const result = await updateTransaction(tmpl.id, fields)
+                      if (!result.error) setRecurringEditingId(null)
+                      return result
+                    }}
+                    onCancel={() => setRecurringEditingId(null)}
+                  />
+                )}
               </li>
             ))}
           </ul>

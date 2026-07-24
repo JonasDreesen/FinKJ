@@ -467,9 +467,9 @@ export default function Transactions() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-gray-500">Laden...</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">Laden...</p>
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-gray-500">Nog geen transacties.</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">Nog geen transacties.</p>
       ) : (
         <ul className="divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white dark:divide-gray-700 dark:border-gray-700 dark:bg-gray-800">
           {filtered.map((t) => (

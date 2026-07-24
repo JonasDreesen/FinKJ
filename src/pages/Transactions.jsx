@@ -1,10 +1,11 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useCategories } from '../hooks/useCategories'
 import { useTags } from '../hooks/useTags'
 import { useTransactions } from '../hooks/useTransactions'
 import { today } from '../lib/recurrence'
 import { downloadCsv, parseCsv, toCsv } from '../lib/csv'
 import { supabase } from '../lib/supabaseClient'
+import { resizeImage } from '../lib/image'
 
 const emptyForm = {
   type: 'expense',
@@ -17,6 +18,26 @@ const emptyForm = {
   isRecurring: false,
   recurrenceInterval: 'monthly',
   recurrenceEndDate: '',
+  receiptPath: '',
+}
+
+async function uploadReceipt(file) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const blob = await resizeImage(file)
+  const path = `${user.id}/${crypto.randomUUID()}.jpg`
+  const { error } = await supabase.storage.from('receipts').upload(path, blob, {
+    contentType: 'image/jpeg',
+  })
+  if (error) throw error
+  return path
+}
+
+async function getReceiptUrl(path) {
+  const { data, error } = await supabase.storage.from('receipts').createSignedUrl(path, 60)
+  if (error) return null
+  return data.signedUrl
 }
 
 function formatAmount(amount) {
@@ -26,6 +47,15 @@ function formatAmount(amount) {
 function TransactionForm({ initial, categories, tags, onSubmit, onCancel }) {
   const [form, setForm] = useState(initial)
   const [error, setError] = useState('')
+  const [uploadingReceipt, setUploadingReceipt] = useState(false)
+  const [receiptUrl, setReceiptUrl] = useState(null)
+
+  useEffect(() => {
+    if (initial.receiptPath) {
+      getReceiptUrl(initial.receiptPath).then(setReceiptUrl)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function toggleTag(tagId) {
     setForm((f) => ({
@@ -34,6 +64,21 @@ function TransactionForm({ initial, categories, tags, onSubmit, onCancel }) {
         ? f.tagIds.filter((id) => id !== tagId)
         : [...f.tagIds, tagId],
     }))
+  }
+
+  async function handleReceiptChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingReceipt(true)
+    setError('')
+    try {
+      const path = await uploadReceipt(file)
+      setForm((f) => ({ ...f, receiptPath: path }))
+      setReceiptUrl(await getReceiptUrl(path))
+    } catch {
+      setError('Uploaden van de foto is mislukt.')
+    }
+    setUploadingReceipt(false)
   }
 
   async function handleSubmit(e) {
@@ -116,6 +161,17 @@ function TransactionForm({ initial, categories, tags, onSubmit, onCancel }) {
             </option>
           ))}
         </select>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm font-medium">Bonnetje (optioneel)</label>
+        <input type="file" accept="image/*" capture="environment" onChange={handleReceiptChange} className="text-sm" />
+        {uploadingReceipt && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Bezig met uploaden...</p>}
+        {receiptUrl && !uploadingReceipt && (
+          <a href={receiptUrl} target="_blank" rel="noreferrer" className="mt-1 block text-xs text-blue-600 hover:underline">
+            Bekijk geüploade foto
+          </a>
+        )}
       </div>
 
       {tags.length > 0 && (
@@ -246,6 +302,7 @@ export default function Transactions() {
       isRecurring: form.isRecurring,
       recurrenceInterval: form.recurrenceInterval,
       recurrenceEndDate: form.recurrenceEndDate,
+      receiptPath: form.receiptPath || null,
     })
     if (!result.error) {
       setFormOpen(false)
@@ -263,6 +320,7 @@ export default function Transactions() {
         category_id: form.categoryId || null,
         occurred_on: form.occurredOn,
         is_shared: form.isShared,
+        receipt_path: form.receiptPath || null,
       },
       form.tagIds,
     )
@@ -414,6 +472,7 @@ export default function Transactions() {
             isRecurring: false,
             recurrenceInterval: 'monthly',
             recurrenceEndDate: '',
+            receiptPath: editing.receipt_path || '',
           }}
           categories={categories}
           tags={tags}
@@ -506,6 +565,17 @@ export default function Transactions() {
                   {t.type === 'income' ? '+' : '-'}
                   {formatAmount(t.amount)}
                 </span>
+                {t.receipt_path && (
+                  <button
+                    onClick={async () => {
+                      const url = await getReceiptUrl(t.receipt_path)
+                      if (url) window.open(url, '_blank')
+                    }}
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    Bon
+                  </button>
+                )}
                 <button onClick={() => startEdit(t)} className="text-xs text-blue-600 hover:underline">
                   Bewerken
                 </button>

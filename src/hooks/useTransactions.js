@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { addInterval, today } from '../lib/recurrence'
+import { loadCache, saveCache } from '../lib/offlineCache'
 
 const SELECT_FIELDS = `
   *,
@@ -51,8 +52,10 @@ async function generateDueRecurring() {
 }
 
 export function useTransactions() {
-  const [transactions, setTransactions] = useState([])
-  const [recurringTemplates, setRecurringTemplates] = useState([])
+  const [transactions, setTransactions] = useState(() => loadCache('transactions') || [])
+  const [recurringTemplates, setRecurringTemplates] = useState(
+    () => loadCache('recurring_templates') || [],
+  )
   const [loading, setLoading] = useState(true)
 
   const refresh = useCallback(async () => {
@@ -71,8 +74,22 @@ export function useTransactions() {
         .order('occurred_on', { ascending: false }),
     ])
 
-    if (!instancesRes.error) setTransactions(instancesRes.data)
-    if (!templatesRes.error) setRecurringTemplates(templatesRes.data)
+    if (!instancesRes.error) {
+      setTransactions(instancesRes.data)
+      saveCache('transactions', instancesRes.data)
+    } else {
+      const cached = loadCache('transactions')
+      if (cached) setTransactions(cached)
+    }
+
+    if (!templatesRes.error) {
+      setRecurringTemplates(templatesRes.data)
+      saveCache('recurring_templates', templatesRes.data)
+    } else {
+      const cached = loadCache('recurring_templates')
+      if (cached) setRecurringTemplates(cached)
+    }
+
     setLoading(false)
   }, [])
 

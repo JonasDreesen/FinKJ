@@ -5,6 +5,7 @@ import { useTemplates } from '../hooks/useTemplates'
 import { useAuth } from '../context/AuthContext'
 import { friendlyError } from '../lib/errors'
 import { downloadJson, fetchFullBackup } from '../lib/backup'
+import { useUndoableDelete } from '../hooks/useUndoableDelete'
 
 function formatAmount(amount) {
   return new Intl.NumberFormat('nl-BE', { style: 'currency', currency: 'EUR' }).format(amount)
@@ -13,6 +14,7 @@ function formatAmount(amount) {
 function NameList({ title, items, onAdd, onDelete, currentUserId }) {
   const [name, setName] = useState('')
   const [error, setError] = useState('')
+  const deletion = useUndoableDelete(onDelete)
 
   async function handleAdd(e) {
     e.preventDefault()
@@ -45,22 +47,37 @@ function NameList({ title, items, onAdd, onDelete, currentUserId }) {
       </form>
       {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
       <ul className="space-y-1">
-        {items.map((item) => (
-          <li
-            key={item.id}
-            className="flex items-center justify-between rounded-md px-2 py-1 text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
-          >
-            <span>{item.name}</span>
-            {item.user_id === currentUserId && (
+        {items.map((item) =>
+          deletion.isPending(item.id) ? (
+            <li
+              key={item.id}
+              className="flex items-center justify-between rounded-md bg-gray-50 px-2 py-1 text-sm text-gray-500 dark:bg-gray-900 dark:text-gray-400"
+            >
+              <span className="line-through">{item.name}</span>
               <button
-                onClick={() => onDelete(item.id)}
-                className="text-xs text-red-600 hover:underline"
+                onClick={() => deletion.undo(item.id)}
+                className="text-xs font-medium text-blue-600 hover:underline"
               >
-                Verwijderen
+                Ongedaan maken
               </button>
-            )}
-          </li>
-        ))}
+            </li>
+          ) : (
+            <li
+              key={item.id}
+              className="flex items-center justify-between rounded-md px-2 py-1 text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              <span>{item.name}</span>
+              {item.user_id === currentUserId && (
+                <button
+                  onClick={() => deletion.scheduleDelete(item.id)}
+                  className="text-xs text-red-600 hover:underline"
+                >
+                  Verwijderen
+                </button>
+              )}
+            </li>
+          ),
+        )}
         {items.length === 0 && <li className="text-sm text-gray-400">Nog niets toegevoegd.</li>}
       </ul>
     </div>
@@ -69,6 +86,7 @@ function NameList({ title, items, onAdd, onDelete, currentUserId }) {
 
 function TemplateManager({ categories, currentUserId }) {
   const { templates, addTemplate, deleteTemplate } = useTemplates()
+  const deletion = useUndoableDelete(deleteTemplate)
   const [name, setName] = useState('')
   const [type, setType] = useState('expense')
   const [amount, setAmount] = useState('')
@@ -160,24 +178,39 @@ function TemplateManager({ categories, currentUserId }) {
         </button>
       </form>
       <ul className="space-y-1">
-        {templates.map((tpl) => (
-          <li
-            key={tpl.id}
-            className="flex items-center justify-between rounded-md px-2 py-1 text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
-          >
-            <span>
-              {tpl.name} — {formatAmount(tpl.amount)} ({tpl.type === 'income' ? 'inkomst' : 'uitgave'})
-            </span>
-            {tpl.user_id === currentUserId && (
+        {templates.map((tpl) =>
+          deletion.isPending(tpl.id) ? (
+            <li
+              key={tpl.id}
+              className="flex items-center justify-between rounded-md bg-gray-50 px-2 py-1 text-sm text-gray-500 dark:bg-gray-900 dark:text-gray-400"
+            >
+              <span className="line-through">{tpl.name}</span>
               <button
-                onClick={() => deleteTemplate(tpl.id)}
-                className="text-xs text-red-600 hover:underline"
+                onClick={() => deletion.undo(tpl.id)}
+                className="text-xs font-medium text-blue-600 hover:underline"
               >
-                Verwijderen
+                Ongedaan maken
               </button>
-            )}
-          </li>
-        ))}
+            </li>
+          ) : (
+            <li
+              key={tpl.id}
+              className="flex items-center justify-between rounded-md px-2 py-1 text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              <span>
+                {tpl.name} — {formatAmount(tpl.amount)} ({tpl.type === 'income' ? 'inkomst' : 'uitgave'})
+              </span>
+              {tpl.user_id === currentUserId && (
+                <button
+                  onClick={() => deletion.scheduleDelete(tpl.id)}
+                  className="text-xs text-red-600 hover:underline"
+                >
+                  Verwijderen
+                </button>
+              )}
+            </li>
+          ),
+        )}
         {templates.length === 0 && <li className="text-sm text-gray-400">Nog geen sjablonen.</li>}
       </ul>
     </div>

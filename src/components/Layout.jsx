@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../hooks/useTheme'
+import { useOnlineStatus } from '../hooks/useOnlineStatus'
 
 const navItems = [
   { to: '/', label: 'Dashboard', end: true },
@@ -26,9 +27,15 @@ function ThemeToggle() {
 export default function Layout() {
   const { signOut, session } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  const online = useOnlineStatus()
 
   return (
     <div className="min-h-screen">
+      {!online && (
+        <div className="no-print bg-amber-500 px-4 py-1.5 text-center text-xs font-medium text-white">
+          Je bent offline — je ziet mogelijk verouderde gegevens en wijzigen is niet mogelijk.
+        </div>
+      )}
       <header className="no-print border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
           <span className="font-semibold">Budget Planner</span>

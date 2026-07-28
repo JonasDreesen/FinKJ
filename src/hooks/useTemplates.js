@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { loadCache, saveCache } from '../lib/offlineCache'
 
 export function useTemplates() {
-  const [templates, setTemplates] = useState([])
+  const [templates, setTemplates] = useState(() => loadCache('templates') || [])
   const [loading, setLoading] = useState(true)
 
   const refresh = useCallback(async () => {
@@ -10,7 +11,13 @@ export function useTemplates() {
       .from('transaction_templates')
       .select('*, category:categories(id, name)')
       .order('name')
-    if (!error) setTemplates(data)
+    if (!error) {
+      setTemplates(data)
+      saveCache('templates', data)
+    } else {
+      const cached = loadCache('templates')
+      if (cached) setTemplates(cached)
+    }
     setLoading(false)
   }, [])
 

@@ -4,6 +4,7 @@ import { useBudgets } from '../hooks/useBudgets'
 import { useSavingsGoals } from '../hooks/useSavingsGoals'
 import { monthStart, shiftMonth, formatMonthLabel } from '../lib/month'
 import { friendlyError } from '../lib/errors'
+import { useUndoableDelete } from '../hooks/useUndoableDelete'
 
 function formatAmount(amount) {
   return new Intl.NumberFormat('nl-BE', { style: 'currency', currency: 'EUR' }).format(amount)
@@ -134,9 +135,20 @@ function GoalForm({ onSubmit, onCancel }) {
   )
 }
 
-function GoalRow({ goal, onUpdateAmount, onDelete }) {
+function GoalRow({ goal, onUpdateAmount, onDelete, isPending, onUndo }) {
   const [amount, setAmount] = useState(String(goal.current_amount))
   const percent = Math.min(100, (goal.current_amount / goal.target_amount) * 100)
+
+  if (isPending) {
+    return (
+      <li className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 p-3 text-sm text-gray-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-400">
+        <span className="line-through">{goal.name}</span>
+        <button onClick={onUndo} className="text-xs font-medium text-blue-600 hover:underline">
+          Ongedaan maken
+        </button>
+      </li>
+    )
+  }
 
   return (
     <li className="rounded-md border border-gray-200 p-3 dark:border-gray-600">
@@ -179,6 +191,8 @@ export default function Budgets() {
   const { categories } = useCategories()
   const { lines, loading, addBudget, deleteBudget } = useBudgets(monthDate)
   const { goals, addGoal, updateGoalAmount, deleteGoal } = useSavingsGoals()
+  const budgetDeletion = useUndoableDelete(deleteBudget)
+  const goalDeletion = useUndoableDelete(deleteGoal)
 
   const [budgetFormOpen, setBudgetFormOpen] = useState(false)
   const [goalFormOpen, setGoalFormOpen] = useState(false)
@@ -229,7 +243,21 @@ export default function Budgets() {
         <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">Nog geen budgetten ingesteld voor deze maand.</p>
       ) : (
         <ul className="mb-6 space-y-3">
-          {lines.map((line) => (
+          {lines.map((line) =>
+            budgetDeletion.isPending(line.id) ? (
+              <li
+                key={line.id}
+                className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400"
+              >
+                <span className="line-through">{line.category?.name || 'Onbekende categorie'}</span>
+                <button
+                  onClick={() => budgetDeletion.undo(line.id)}
+                  className="text-xs font-medium text-blue-600 hover:underline"
+                >
+                  Ongedaan maken
+                </button>
+              </li>
+            ) : (
             <li key={line.id} className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
               <div className="mb-1 flex items-center justify-between text-sm font-medium">
                 <span>
@@ -245,7 +273,7 @@ export default function Budgets() {
                     </span>
                   )}
                 </span>
-                <button onClick={() => deleteBudget(line.id)} className="text-xs text-red-600 hover:underline">
+                <button onClick={() => budgetDeletion.scheduleDelete(line.id)} className="text-xs text-red-600 hover:underline">
                   Verwijderen
                 </button>
               </div>
@@ -265,7 +293,8 @@ export default function Budgets() {
                   : `${formatAmount(Math.abs(line.leftover))} overschreden`}
               </div>
             </li>
-          ))}
+            ),
+          )}
         </ul>
       )}
 
@@ -295,7 +324,14 @@ export default function Budgets() {
       ) : (
         <ul className="space-y-3">
           {goals.map((goal) => (
-            <GoalRow key={goal.id} goal={goal} onUpdateAmount={updateGoalAmount} onDelete={deleteGoal} />
+            <GoalRow
+              key={goal.id}
+              goal={goal}
+              onUpdateAmount={updateGoalAmount}
+              onDelete={goalDeletion.scheduleDelete}
+              isPending={goalDeletion.isPending(goal.id)}
+              onUndo={() => goalDeletion.undo(goal.id)}
+            />
           ))}
         </ul>
       )}

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { loadCache, saveCache } from '../lib/offlineCache'
 
 export function useSavingsGoals() {
-  const [goals, setGoals] = useState([])
+  const [goals, setGoals] = useState(() => loadCache('savings_goals') || [])
   const [loading, setLoading] = useState(true)
 
   const refresh = useCallback(async () => {
@@ -10,7 +11,13 @@ export function useSavingsGoals() {
       .from('savings_goals')
       .select('*')
       .order('created_at')
-    if (!error) setGoals(data)
+    if (!error) {
+      setGoals(data)
+      saveCache('savings_goals', data)
+    } else {
+      const cached = loadCache('savings_goals')
+      if (cached) setGoals(cached)
+    }
     setLoading(false)
   }, [])
 

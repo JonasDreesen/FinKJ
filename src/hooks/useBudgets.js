@@ -1,22 +1,23 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { toMonthKey, shiftMonth, monthRange } from '../lib/month'
+import { loadCache, saveCache } from '../lib/offlineCache'
 
 function bucketKey(categoryId, isShared, userId, monthKey) {
   return `${categoryId}|${isShared}|${isShared ? '' : userId}|${monthKey}`
 }
 
 export function useBudgets(monthDate) {
-  const [lines, setLines] = useState([])
-  const [loading, setLoading] = useState(true)
   const monthKey = toMonthKey(monthDate)
+  const [lines, setLines] = useState(() => loadCache(`budgets:${monthKey}`) || [])
+  const [loading, setLoading] = useState(true)
 
   const refresh = useCallback(async () => {
     setLoading(true)
     const prevDate = shiftMonth(monthDate, -1)
     const prevMonthKey = toMonthKey(prevDate)
 
-    const { data: budgetRows } = await supabase
+    const { data: budgetRows, error: budgetError } = await supabase
       .from('budgets')
       .select('*, category:categories(id, name, color)')
       .in('month', [monthKey, prevMonthKey])
@@ -24,13 +25,20 @@ export function useBudgets(monthDate) {
     const currentRange = monthRange(monthDate)
     const prevRange = monthRange(prevDate)
 
-    const { data: txRows } = await supabase
+    const { data: txRows, error: txError } = await supabase
       .from('transactions')
       .select('category_id, is_shared, user_id, amount, occurred_on')
       .eq('type', 'expense')
       .eq('is_recurring', false)
       .gte('occurred_on', prevRange.start)
       .lt('occurred_on', currentRange.end)
+
+    if (budgetError || txError) {
+      const cached = loadCache(`budgets:${monthKey}`)
+      if (cached) setLines(cached)
+      setLoading(false)
+      return
+    }
 
     const spentByBucket = {}
     for (const tx of txRows || []) {
@@ -69,6 +77,7 @@ export function useBudgets(monthDate) {
     })
 
     setLines(result)
+    saveCache(`budgets:${monthKey}`, result)
     setLoading(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthKey])

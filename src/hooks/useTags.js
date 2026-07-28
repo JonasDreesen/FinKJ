@@ -1,13 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { loadCache, saveCache } from '../lib/offlineCache'
 
 export function useTags() {
-  const [tags, setTags] = useState([])
+  const [tags, setTags] = useState(() => loadCache('tags') || [])
   const [loading, setLoading] = useState(true)
 
   const refresh = useCallback(async () => {
     const { data, error } = await supabase.from('tags').select('*').order('name')
-    if (!error) setTags(data)
+    if (!error) {
+      setTags(data)
+      saveCache('tags', data)
+    } else {
+      const cached = loadCache('tags')
+      if (cached) setTags(cached)
+    }
     setLoading(false)
   }, [])
 

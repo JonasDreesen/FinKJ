@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabaseClient'
 import { resizeImage } from '../lib/image'
 import { useTemplates } from '../hooks/useTemplates'
 import { friendlyError } from '../lib/errors'
+import { useUndoableDelete } from '../hooks/useUndoableDelete'
 
 const emptyForm = {
   type: 'expense',
@@ -381,6 +382,8 @@ export default function Transactions() {
   } = useTransactions()
 
   const { templates } = useTemplates()
+  const transactionDeletion = useUndoableDelete(deleteTransaction)
+  const recurringDeletion = useUndoableDelete(stopRecurring)
   const [formOpen, setFormOpen] = useState(false)
   const [formSeed, setFormSeed] = useState(emptyForm)
   const [formKey, setFormKey] = useState(0)
@@ -684,20 +687,31 @@ export default function Transactions() {
                     {tmpl.recurrence_interval === 'yearly' && 'jaarlijks'})
                   </span>
                   <span className="flex gap-2">
-                    <button
-                      onClick={() =>
-                        setRecurringEditingId((id) => (id === tmpl.id ? null : tmpl.id))
-                      }
-                      className="text-xs text-blue-600 hover:underline"
-                    >
-                      {recurringEditingId === tmpl.id ? 'Sluiten' : 'Bewerken'}
-                    </button>
-                    <button
-                      onClick={() => stopRecurring(tmpl.id)}
-                      className="text-xs text-red-600 hover:underline"
-                    >
-                      Stoppen
-                    </button>
+                    {recurringDeletion.isPending(tmpl.id) ? (
+                      <button
+                        onClick={() => recurringDeletion.undo(tmpl.id)}
+                        className="text-xs font-medium text-blue-600 hover:underline"
+                      >
+                        Ongedaan maken
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() =>
+                            setRecurringEditingId((id) => (id === tmpl.id ? null : tmpl.id))
+                          }
+                          className="text-xs text-blue-600 hover:underline"
+                        >
+                          {recurringEditingId === tmpl.id ? 'Sluiten' : 'Bewerken'}
+                        </button>
+                        <button
+                          onClick={() => recurringDeletion.scheduleDelete(tmpl.id)}
+                          className="text-xs text-red-600 hover:underline"
+                        >
+                          Stoppen
+                        </button>
+                      </>
+                    )}
                   </span>
                 </div>
                 {recurringEditingId === tmpl.id && (
@@ -760,68 +774,80 @@ export default function Transactions() {
         <p className="text-sm text-gray-500 dark:text-gray-400">Nog geen transacties.</p>
       ) : (
         <ul className="divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white dark:divide-gray-700 dark:border-gray-700 dark:bg-gray-800">
-          {filtered.map((t) => (
-            <li key={t.id} className="flex items-center justify-between px-4 py-3">
-              <div>
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <span>{t.description || '(geen omschrijving)'}</span>
-                  {t.category && (
-                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs dark:bg-gray-700">
-                      {t.category.name}
-                    </span>
-                  )}
-                  {t.is_shared && (
-                    <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900 dark:text-purple-200">
-                      Gedeeld
-                    </span>
-                  )}
-                  {t.parent_transaction_id && (
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-900 dark:text-amber-200">
-                      Terugkerend
-                    </span>
-                  )}
-                  {t.pending_review && (
-                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700 dark:bg-red-900 dark:text-red-200">
-                      Te bevestigen
-                    </span>
-                  )}
-                </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">{t.occurred_on}</div>
-              </div>
-              <div className="flex items-center gap-3">
-                <span
-                  className={
-                    t.type === 'income'
-                      ? 'font-semibold text-green-600'
-                      : 'font-semibold text-red-600'
-                  }
-                >
-                  {t.type === 'income' ? '+' : '-'}
-                  {formatAmount(t.amount)}
-                </span>
-                {t.receipt_path && (
-                  <button
-                    onClick={async () => {
-                      const url = await getReceiptUrl(t.receipt_path)
-                      if (url) window.open(url, '_blank')
-                    }}
-                    className="text-xs text-blue-600 hover:underline"
-                  >
-                    Bon
-                  </button>
-                )}
-                <button onClick={() => startEdit(t)} className="text-xs text-blue-600 hover:underline">
-                  Bewerken
-                </button>
+          {filtered.map((t) =>
+            transactionDeletion.isPending(t.id) ? (
+              <li key={t.id} className="flex items-center justify-between bg-gray-50 px-4 py-3 text-sm text-gray-500 dark:bg-gray-900 dark:text-gray-400">
+                <span className="line-through">{t.description || '(geen omschrijving)'}</span>
                 <button
-                  onClick={() => deleteTransaction(t.id)}
-                  className="text-xs text-red-600 hover:underline"
+                  onClick={() => transactionDeletion.undo(t.id)}
+                  className="text-xs font-medium text-blue-600 hover:underline"
                 >
-                  Verwijderen
+                  Ongedaan maken
                 </button>
-              </div>
-            </li>
-          ))}
+              </li>
+            ) : (
+              <li key={t.id} className="flex items-center justify-between px-4 py-3">
+                <div>
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <span>{t.description || '(geen omschrijving)'}</span>
+                    {t.category && (
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs dark:bg-gray-700">
+                        {t.category.name}
+                      </span>
+                    )}
+                    {t.is_shared && (
+                      <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900 dark:text-purple-200">
+                        Gedeeld
+                      </span>
+                    )}
+                    {t.parent_transaction_id && (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-900 dark:text-amber-200">
+                        Terugkerend
+                      </span>
+                    )}
+                    {t.pending_review && (
+                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700 dark:bg-red-900 dark:text-red-200">
+                        Te bevestigen
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">{t.occurred_on}</div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span
+                    className={
+                      t.type === 'income'
+                        ? 'font-semibold text-green-600'
+                        : 'font-semibold text-red-600'
+                    }
+                  >
+                    {t.type === 'income' ? '+' : '-'}
+                    {formatAmount(t.amount)}
+                  </span>
+                  {t.receipt_path && (
+                    <button
+                      onClick={async () => {
+                        const url = await getReceiptUrl(t.receipt_path)
+                        if (url) window.open(url, '_blank')
+                      }}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      Bon
+                    </button>
+                  )}
+                  <button onClick={() => startEdit(t)} className="text-xs text-blue-600 hover:underline">
+                    Bewerken
+                  </button>
+                  <button
+                    onClick={() => transactionDeletion.scheduleDelete(t.id)}
+                    className="text-xs text-red-600 hover:underline"
+                  >
+                    Verwijderen
+                  </button>
+                </div>
+              </li>
+            ),
+          )}
         </ul>
       )}
     </div>

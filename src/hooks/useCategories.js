@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { loadCache, saveCache } from '../lib/offlineCache'
 
 export function useCategories() {
-  const [categories, setCategories] = useState([])
+  const [categories, setCategories] = useState(() => loadCache('categories') || [])
   const [loading, setLoading] = useState(true)
 
   const refresh = useCallback(async () => {
@@ -10,7 +11,13 @@ export function useCategories() {
       .from('categories')
       .select('*')
       .order('name')
-    if (!error) setCategories(data)
+    if (!error) {
+      setCategories(data)
+      saveCache('categories', data)
+    } else {
+      const cached = loadCache('categories')
+      if (cached) setCategories(cached)
+    }
     setLoading(false)
   }, [])
 

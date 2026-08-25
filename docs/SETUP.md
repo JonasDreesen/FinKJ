@@ -86,3 +86,9 @@ Stappen die jij zelf moet doen. Alles wat hier niet staat, is al door mij gerege
 1. Ga naar je Supabase project → **SQL Editor** → **New query**.
 2. Open `docs/sql/phase7_pending_review.sql` uit deze repo, kopieer de volledige inhoud en plak die in de SQL Editor.
 3. Klik **Run**. Dit voegt een `pending_review` kolom toe aan transacties.
+
+## Extra: beleggingsportefeuille
+
+1. Ga naar je Supabase project → **SQL Editor** → **New query**.
+2. Open `docs/sql/phase9_investments.sql` uit deze repo, kopieer de volledige inhoud en plak die in de SQL Editor.
+3. Klik **Run**. Dit maakt de tabel `investments` aan (volledig privé: enkel de eigenaar ziet zijn/haar eigen posities).

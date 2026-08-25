@@ -9,6 +9,7 @@ const navItems = [
   { to: '/transacties', label: 'Transacties' },
   { to: '/budgetten', label: 'Budgetten' },
   { to: '/budgetadvies', label: 'Budgetadvies' },
+  { to: '/beleggingen', label: 'Beleggingen' },
   { to: '/instellingen', label: 'Instellingen' },
 ]
 

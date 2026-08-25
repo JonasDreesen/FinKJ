@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import Transactions from './pages/Transactions'
 import Budgets from './pages/Budgets'
 import Settings from './pages/Settings'
+import BudgetAdvice from './pages/BudgetAdvice'
 
 function RequireAuth({ children }) {
   const { session, loading } = useAuth()
@@ -36,6 +37,7 @@ function AppRoutes() {
         <Route index element={<Dashboard />} />
         <Route path="transacties" element={<Transactions />} />
         <Route path="budgetten" element={<Budgets />} />
+        <Route path="budgetadvies" element={<BudgetAdvice />} />
         <Route path="instellingen" element={<Settings />} />
       </Route>
     </Routes>

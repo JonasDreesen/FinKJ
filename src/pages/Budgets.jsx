@@ -28,6 +28,52 @@ function barColor(percent) {
   return 'bg-green-500'
 }
 
+function ActualAmountInput({ line, onSave }) {
+  const [value, setValue] = useState(line.actual_amount ?? '')
+  const [saving, setSaving] = useState(false)
+
+  async function handleSave() {
+    setSaving(true)
+    await onSave(line.id, value)
+    setSaving(false)
+  }
+
+  return (
+    <div className="mt-2 flex items-center gap-2 border-t border-gray-100 pt-2 text-xs dark:border-gray-700">
+      <span className="text-gray-500 dark:text-gray-400">Werkelijke uitgave (handmatig, voor boekhouding):</span>
+      <input
+        type="number"
+        step="0.01"
+        min="0"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="uit transacties"
+        className="w-24 rounded-md border border-gray-300 px-2 py-0.5 text-xs dark:border-gray-600 dark:bg-gray-700"
+      />
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        className="rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-2 py-0.5 text-xs text-white hover:bg-brand-600 disabled:opacity-50"
+      >
+        {saving ? 'Bezig...' : 'Opslaan'}
+      </button>
+      {line.hasManualActual && (
+        <button
+          onClick={async () => {
+            setValue('')
+            setSaving(true)
+            await onSave(line.id, '')
+            setSaving(false)
+          }}
+          className="text-gray-500 hover:underline dark:text-gray-400"
+        >
+          Wissen (gebruik berekend bedrag)
+        </button>
+      )}
+    </div>
+  )
+}
+
 function BudgetTrendChart() {
   const { data, loading } = useBudgetTrend(6)
   const hasData = data.some((d) => d.budget > 0 || d.spent > 0)
@@ -236,7 +282,7 @@ function GoalRow({ goal, onUpdateAmount, onDelete, isPending, onUndo }) {
 export default function Budgets() {
   const [monthDate, setMonthDate] = useState(monthStart())
   const { categories } = useCategories()
-  const { lines, loading, addBudget, deleteBudget } = useBudgets(monthDate)
+  const { lines, loading, addBudget, deleteBudget, setActualAmount } = useBudgets(monthDate)
   const { goals, addGoal, updateGoalAmount, deleteGoal } = useSavingsGoals()
   const budgetDeletion = useUndoableDelete(deleteBudget)
   const goalDeletion = useUndoableDelete(deleteGoal)
@@ -331,7 +377,8 @@ export default function Budgets() {
                 />
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400">
-                {formatAmount(line.spent)} van {formatAmount(line.effectiveBudget)} besteed
+                {formatAmount(line.effectiveSpent)} van {formatAmount(line.effectiveBudget)} besteed
+                {line.hasManualActual && ' (handmatig ingevoerd)'}
                 {line.rolloverAmount !== 0 &&
                   ` (waarvan ${formatAmount(line.rolloverAmount)} meegenomen uit vorige maand)`}
                 {' — '}
@@ -339,6 +386,7 @@ export default function Budgets() {
                   ? `${formatAmount(line.leftover)} over`
                   : `${formatAmount(Math.abs(line.leftover))} overschreden`}
               </div>
+              <ActualAmountInput line={line} onSave={setActualAmount} />
             </li>
             ),
           )}

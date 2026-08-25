@@ -5,7 +5,7 @@ import { loadCache, saveCache } from '../lib/offlineCache'
 
 const SELECT_FIELDS = `
   *,
-  category:categories(id, name, color),
+  category:categories(id, name, color, tax_deductible),
   transaction_tags(tag_id, tags(id, name))
 `
 

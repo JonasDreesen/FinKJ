@@ -37,5 +37,11 @@ export function useCategories() {
     return { error }
   }
 
-  return { categories, loading, addCategory, deleteCategory, refresh }
+  async function updateCategory(id, fields) {
+    const { error } = await supabase.from('categories').update(fields).eq('id', id)
+    if (!error) await refresh()
+    return { error }
+  }
+
+  return { categories, loading, addCategory, deleteCategory, updateCategory, refresh }
 }

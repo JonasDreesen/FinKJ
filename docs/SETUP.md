@@ -104,3 +104,11 @@ Stappen die jij zelf moet doen. Alles wat hier niet staat, is al door mij gerege
 1. Ga naar je Supabase project → **SQL Editor** → **New query**.
 2. Open `docs/sql/phase11_receipt_text.sql` uit deze repo, kopieer de volledige inhoud en plak die in de SQL Editor.
 3. Klik **Run**. Dit voegt een `receipt_text` kolom toe aan transacties. Wanneer je een bonnetje-foto uploadt, wordt de tekst erop automatisch herkend (in de browser, gratis, geen API-key nodig) en opgeslagen — je kan er nadien op zoeken via het zoekveld bij Transacties, en het bedrag wordt automatisch voorgesteld als het leeg is.
+
+## Extra: fiscaal jaaroverzicht + handmatige boekhouding per budget
+
+1. Ga naar je Supabase project → **SQL Editor** → **New query**.
+2. Open `docs/sql/phase12_tax_and_manual_actuals.sql` uit deze repo, kopieer de volledige inhoud en plak die in de SQL Editor.
+3. Klik **Run**. Dit voegt toe:
+   - een `tax_deductible` kolom aan categorieën — vink bij Instellingen "Fiscaal" aan bij een categorie om ze mee te nemen in het fiscaal jaaroverzicht. Bij Transacties vind je dan een knop "Fiscaal jaaroverzicht" die een CSV met alle fiscaal-aftrekbare uitgaven van het huidige jaar + totalen per categorie downloadt.
+   - een `actual_amount` kolom aan budgetten — bij elke budgetregel op de Budgetten-pagina kan je nu ook een "werkelijke uitgave (handmatig)" invullen, voor als je niet elke uitgave als losse transactie wil invoeren maar toch een correcte boekhouding per categorie per maand wil bijhouden. Zolang dit veld leeg is, blijft het automatisch berekende bedrag (op basis van je transacties) gebruikt worden.

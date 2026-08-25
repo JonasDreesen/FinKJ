@@ -65,14 +65,18 @@ export function useBudgets(monthDate) {
         : 0
       const rolloverAmount = prevRow?.rollover ? Number(prevRow.amount) - prevSpent : 0
       const effectiveBudget = Number(row.amount) + rolloverAmount
+      const hasManualActual = row.actual_amount !== null && row.actual_amount !== undefined
+      const effectiveSpent = hasManualActual ? Number(row.actual_amount) : spent
 
       return {
         ...row,
         spent,
+        hasManualActual,
+        effectiveSpent,
         rolloverAmount,
         effectiveBudget,
-        leftover: effectiveBudget - spent,
-        percent: effectiveBudget > 0 ? (spent / effectiveBudget) * 100 : spent > 0 ? 100 : 0,
+        leftover: effectiveBudget - effectiveSpent,
+        percent: effectiveBudget > 0 ? (effectiveSpent / effectiveBudget) * 100 : effectiveSpent > 0 ? 100 : 0,
       }
     })
 
@@ -110,5 +114,9 @@ export function useBudgets(monthDate) {
     return { error }
   }
 
-  return { lines, loading, addBudget, updateBudget, deleteBudget, refresh }
+  async function setActualAmount(id, amount) {
+    return updateBudget(id, { actual_amount: amount === '' || amount === null ? null : Number(amount) })
+  }
+
+  return { lines, loading, addBudget, updateBudget, deleteBudget, setActualAmount, refresh }
 }

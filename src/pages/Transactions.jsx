@@ -149,12 +149,29 @@ function RecurringEditForm({ template, categories, onSubmit, onCancel }) {
   )
 }
 
-function TransactionForm({ initial, categories, tags, onSubmit, onCancel }) {
+function suggestCategory(description, transactions) {
+  const query = description.trim().toLowerCase()
+  if (query.length < 3) return null
+
+  const counts = {}
+  for (const t of transactions || []) {
+    if (!t.category_id || !t.description) continue
+    const desc = t.description.toLowerCase()
+    if (desc.includes(query) || query.includes(desc)) {
+      counts[t.category_id] = (counts[t.category_id] || 0) + 1
+    }
+  }
+  const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]
+  return best ? best[0] : null
+}
+
+function TransactionForm({ initial, categories, tags, transactions, onSubmit, onCancel }) {
   const [form, setForm] = useState(initial)
   const [error, setError] = useState('')
   const [uploadingReceipt, setUploadingReceipt] = useState(false)
   const [receiptUrl, setReceiptUrl] = useState(null)
   const [ocrRunning, setOcrRunning] = useState(false)
+  const [suggestedCategoryId, setSuggestedCategoryId] = useState(null)
 
   useEffect(() => {
     if (initial.receiptPath) {
@@ -195,6 +212,9 @@ function TransactionForm({ initial, categories, tags, onSubmit, onCancel }) {
         receiptText: text,
         amount: f.amount || String(guessAmountFromText(text) || ''),
       }))
+      if (!form.categoryId && !form.description) {
+        setSuggestedCategoryId(suggestCategory(text.split('\n')[0] || '', transactions))
+      }
     }
   }
 
@@ -259,7 +279,15 @@ function TransactionForm({ initial, categories, tags, onSubmit, onCancel }) {
         <label className="mb-1 block text-sm font-medium">Omschrijving</label>
         <input
           value={form.description}
-          onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+          onChange={(e) => {
+            const description = e.target.value
+            setForm((f) => ({ ...f, description }))
+            if (!form.categoryId) {
+              setSuggestedCategoryId(suggestCategory(description, transactions))
+            } else {
+              setSuggestedCategoryId(null)
+            }
+          }}
           className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
         />
       </div>
@@ -268,7 +296,10 @@ function TransactionForm({ initial, categories, tags, onSubmit, onCancel }) {
         <label className="mb-1 block text-sm font-medium">Categorie</label>
         <select
           value={form.categoryId}
-          onChange={(e) => setForm((f) => ({ ...f, categoryId: e.target.value }))}
+          onChange={(e) => {
+            setForm((f) => ({ ...f, categoryId: e.target.value }))
+            setSuggestedCategoryId(null)
+          }}
           className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
         >
           <option value="">Geen</option>
@@ -278,6 +309,24 @@ function TransactionForm({ initial, categories, tags, onSubmit, onCancel }) {
             </option>
           ))}
         </select>
+        {suggestedCategoryId &&
+          !form.categoryId &&
+          (() => {
+            const suggested = categories.find((c) => c.id === suggestedCategoryId)
+            if (!suggested) return null
+            return (
+              <button
+                type="button"
+                onClick={() => {
+                  setForm((f) => ({ ...f, categoryId: suggestedCategoryId }))
+                  setSuggestedCategoryId(null)
+                }}
+                className="mt-1 text-xs text-brand-500 hover:underline"
+              >
+                Voorstel: {suggested.name} toepassen?
+              </button>
+            )
+          })()}
       </div>
 
       <div>
@@ -525,6 +574,25 @@ export default function Transactions() {
     downloadCsv(`transacties-${today()}.csv`, toCsv(headers, rows))
   }
 
+  function handleTaxExport() {
+    const year = new Date().getFullYear()
+    const taxTransactions = transactions.filter(
+      (t) => t.type === 'expense' && t.category?.tax_deductible && t.occurred_on.startsWith(String(year)),
+    )
+    const totalsByCategory = {}
+    for (const t of taxTransactions) {
+      const name = t.category?.name || 'Onbekend'
+      totalsByCategory[name] = (totalsByCategory[name] || 0) + Number(t.amount)
+    }
+
+    const headers = ['datum', 'categorie', 'bedrag', 'omschrijving']
+    const rows = taxTransactions.map((t) => [t.occurred_on, t.category?.name || '', t.amount, t.description || ''])
+    for (const [name, total] of Object.entries(totalsByCategory)) {
+      rows.push(['', `Totaal ${name}`, total.toFixed(2), ''])
+    }
+    downloadCsv(`fiscaal-jaaroverzicht-${year}.csv`, toCsv(headers, rows))
+  }
+
   async function handleImportFile(e) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -596,6 +664,13 @@ export default function Transactions() {
             className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600"
           >
             Exporteren (CSV)
+          </button>
+          <button
+            onClick={handleTaxExport}
+            title="Enkel transacties in categorieën die je als 'fiscaal' hebt gemarkeerd bij Instellingen, voor het huidige jaar"
+            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600"
+          >
+            Fiscaal jaaroverzicht
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
@@ -680,6 +755,7 @@ export default function Transactions() {
           initial={formSeed}
           categories={categories}
           tags={tags}
+          transactions={transactions}
           onSubmit={handleAdd}
           onCancel={() => setFormOpen(false)}
         />
@@ -704,6 +780,7 @@ export default function Transactions() {
           }}
           categories={categories}
           tags={tags}
+          transactions={transactions}
           onSubmit={handleEditSubmit}
           onCancel={() => setEditing(null)}
         />

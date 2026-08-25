@@ -84,6 +84,93 @@ function NameList({ title, items, onAdd, onDelete, currentUserId }) {
   )
 }
 
+function CategoryList({ items, onAdd, onDelete, onUpdate, currentUserId }) {
+  const [name, setName] = useState('')
+  const [error, setError] = useState('')
+  const deletion = useUndoableDelete(onDelete)
+
+  async function handleAdd(e) {
+    e.preventDefault()
+    if (!name.trim()) return
+    const { error } = await onAdd(name.trim())
+    if (error) {
+      setError(friendlyError(error, 'Kon niet toevoegen.'))
+    } else {
+      setError('')
+      setName('')
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
+      <h2 className="mb-3 font-semibold">Categorieën</h2>
+      <form onSubmit={handleAdd} className="mb-3 flex gap-2">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Naam"
+          className="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
+        />
+        <button
+          type="submit"
+          className="rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-3 py-1.5 text-sm text-white hover:bg-brand-600"
+        >
+          Toevoegen
+        </button>
+      </form>
+      {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
+      <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+        Vink "fiscaal" aan voor categorieën die je wil meenemen in het fiscaal jaaroverzicht (bv.
+        kinderopvang, giften).
+      </p>
+      <ul className="space-y-1">
+        {items.map((item) =>
+          deletion.isPending(item.id) ? (
+            <li
+              key={item.id}
+              className="flex items-center justify-between rounded-md bg-gray-50 px-2 py-1 text-sm text-gray-500 dark:bg-gray-900 dark:text-gray-400"
+            >
+              <span className="line-through">{item.name}</span>
+              <button
+                onClick={() => deletion.undo(item.id)}
+                className="text-xs font-medium text-brand-500 hover:underline"
+              >
+                Ongedaan maken
+              </button>
+            </li>
+          ) : (
+            <li
+              key={item.id}
+              className="flex items-center justify-between rounded-md px-2 py-1 text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              <span>{item.name}</span>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                  <input
+                    type="checkbox"
+                    checked={!!item.tax_deductible}
+                    onChange={(e) => onUpdate(item.id, { tax_deductible: e.target.checked })}
+                  />
+                  Fiscaal
+                </label>
+                {item.user_id === currentUserId && (
+                  <button
+                    onClick={() => deletion.scheduleDelete(item.id)}
+                    className="text-xs text-red-600 hover:underline"
+                  >
+                    Verwijderen
+                  </button>
+                )}
+              </div>
+            </li>
+          ),
+        )}
+        {items.length === 0 && <li className="text-sm text-gray-400">Nog niets toegevoegd.</li>}
+      </ul>
+    </div>
+  )
+}
+
 function TemplateManager({ categories, currentUserId }) {
   const { templates, addTemplate, deleteTemplate } = useTemplates()
   const deletion = useUndoableDelete(deleteTemplate)
@@ -219,7 +306,7 @@ function TemplateManager({ categories, currentUserId }) {
 
 export default function Settings() {
   const { session } = useAuth()
-  const { categories, addCategory, deleteCategory } = useCategories()
+  const { categories, addCategory, deleteCategory, updateCategory } = useCategories()
   const { tags, addTag, deleteTag } = useTags()
   const [backupBusy, setBackupBusy] = useState(false)
 
@@ -238,11 +325,11 @@ export default function Settings() {
         ze verwijderen.
       </p>
       <div className="mb-4 grid gap-4 sm:grid-cols-2">
-        <NameList
-          title="Categorieën"
+        <CategoryList
           items={categories}
           onAdd={addCategory}
           onDelete={deleteCategory}
+          onUpdate={updateCategory}
           currentUserId={session?.user?.id}
         />
         <NameList

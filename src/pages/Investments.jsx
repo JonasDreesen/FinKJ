@@ -3,24 +3,25 @@ import { useInvestments } from '../hooks/useInvestments'
 import { useUndoableDelete } from '../hooks/useUndoableDelete'
 import { friendlyError } from '../lib/errors'
 import { today } from '../lib/recurrence'
-import { getApiKey, searchSymbols, setApiKey } from '../lib/twelveData'
+import { searchSymbols } from '../lib/twelveData'
+import { useApiKey } from '../hooks/useApiKey'
 
 function formatAmount(amount) {
   return new Intl.NumberFormat('nl-BE', { style: 'currency', currency: 'EUR' }).format(amount)
 }
 
-function SymbolPicker({ symbol, setSymbol, onPick }) {
+function SymbolPicker({ symbol, setSymbol, onPick, apiKey }) {
   const [suggestions, setSuggestions] = useState([])
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
     if (!open) return
     const handle = setTimeout(async () => {
-      const results = await searchSymbols(symbol)
+      const results = await searchSymbols(symbol, apiKey)
       setSuggestions(results)
     }, 400)
     return () => clearTimeout(handle)
-  }, [symbol, open])
+  }, [symbol, open, apiKey])
 
   return (
     <div className="relative">
@@ -32,7 +33,7 @@ function SymbolPicker({ symbol, setSymbol, onPick }) {
         }}
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
-        placeholder={getApiKey() ? 'Typ om te zoeken, bv. Apple' : 'AAPL.US'}
+        placeholder={apiKey ? 'Typ om te zoeken, bv. Apple' : 'AAPL.US'}
         className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
       />
       {open && suggestions.length > 0 && (
@@ -60,7 +61,7 @@ function SymbolPicker({ symbol, setSymbol, onPick }) {
   )
 }
 
-function InvestmentForm({ onSubmit, onCancel }) {
+function InvestmentForm({ onSubmit, onCancel, apiKey }) {
   const [symbol, setSymbol] = useState('')
   const [name, setName] = useState('')
   const [quantity, setQuantity] = useState('')
@@ -95,6 +96,7 @@ function InvestmentForm({ onSubmit, onCancel }) {
           <SymbolPicker
             symbol={symbol}
             setSymbol={setSymbol}
+            apiKey={apiKey}
             onPick={(s) => {
               setSymbol(s.symbol)
               if (!name) setName(s.name)
@@ -181,14 +183,19 @@ function ManualPriceInput({ investment, onSetPrice }) {
   )
 }
 
-function ApiKeyPanel() {
-  const [key, setKey] = useState(getApiKey())
+function ApiKeyPanel({ apiKey, saveApiKey }) {
+  const [key, setKey] = useState(apiKey)
   const [saved, setSaved] = useState(false)
-  const [open, setOpen] = useState(!getApiKey())
+  const [open, setOpen] = useState(!apiKey)
 
-  function handleSave(e) {
+  useEffect(() => {
+    setKey(apiKey)
+    if (apiKey) setOpen(false)
+  }, [apiKey])
+
+  async function handleSave(e) {
     e.preventDefault()
-    setApiKey(key.trim())
+    await saveApiKey(key)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -199,7 +206,7 @@ function ApiKeyPanel() {
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between text-left text-sm font-semibold"
       >
-        <span>Automatische koersen {getApiKey() ? '(sleutel ingesteld)' : '(nog niet ingesteld)'}</span>
+        <span>Automatische koersen {apiKey ? '(sleutel ingesteld)' : '(nog niet ingesteld)'}</span>
         <span className="text-xs text-brand-500">{open ? 'Sluiten' : 'Instellen'}</span>
       </button>
       {open && (
@@ -214,7 +221,8 @@ function ApiKeyPanel() {
             >
               twelvedata.com/pricing
             </a>{' '}
-            en plak hier je API-key. Wordt enkel lokaal in jouw browser bewaard, niet gedeeld.
+            en plak hier je API-key. Wordt bewaard op je account, dus blijft staan op elk toestel
+            waarop je inlogt — enkel jij ziet je eigen key.
           </p>
           <div className="flex flex-wrap gap-2">
             <input
@@ -237,13 +245,14 @@ function ApiKeyPanel() {
 export default function Investments() {
   const { investments, loading, refreshingPrices, addInvestment, deleteInvestment, setManualPrice, refreshAllPrices } =
     useInvestments()
+  const { apiKey, saveApiKey } = useApiKey()
   const deletion = useUndoableDelete(deleteInvestment)
 
   const [formOpen, setFormOpen] = useState(false)
   const [refreshMessage, setRefreshMessage] = useState('')
 
   async function handleRefreshPrices() {
-    const { updated, failed, noKey } = await refreshAllPrices()
+    const { updated, failed, noKey } = await refreshAllPrices(apiKey)
     if (noKey) {
       setRefreshMessage('Stel eerst je API-key in bij "Automatische koersen" hierboven.')
       return
@@ -296,7 +305,7 @@ export default function Investments() {
         maar met een gratis API-key kan de app koersen automatisch ophalen (of vul ze zelf in).
       </p>
 
-      <ApiKeyPanel />
+      <ApiKeyPanel apiKey={apiKey} saveApiKey={saveApiKey} />
 
       {refreshMessage && (
         <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">{refreshMessage}</p>
@@ -310,6 +319,7 @@ export default function Investments() {
             return result
           }}
           onCancel={() => setFormOpen(false)}
+          apiKey={apiKey}
         />
       )}
 

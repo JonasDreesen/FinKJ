@@ -1,24 +1,4 @@
-const STORAGE_KEY = 'twelvedata_api_key'
-
-export function getApiKey() {
-  try {
-    return localStorage.getItem(STORAGE_KEY) || ''
-  } catch {
-    return ''
-  }
-}
-
-export function setApiKey(key) {
-  try {
-    if (key) localStorage.setItem(STORAGE_KEY, key)
-    else localStorage.removeItem(STORAGE_KEY)
-  } catch {
-    // localStorage niet beschikbaar — negeren.
-  }
-}
-
-export async function searchSymbols(query) {
-  const apiKey = getApiKey()
+export async function searchSymbols(query, apiKey) {
   if (!apiKey || !query || query.trim().length < 2) return []
 
   try {
@@ -37,8 +17,7 @@ export async function searchSymbols(query) {
   }
 }
 
-export async function fetchPrice(symbol) {
-  const apiKey = getApiKey()
+export async function fetchPrice(symbol, apiKey) {
   if (!apiKey) return null
 
   try {

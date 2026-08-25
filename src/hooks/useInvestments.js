@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { loadCache, saveCache } from '../lib/offlineCache'
-import { fetchPrice, getApiKey } from '../lib/twelveData'
+import { fetchPrice } from '../lib/twelveData'
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -62,15 +62,15 @@ export function useInvestments() {
     })
   }
 
-  async function refreshAllPrices() {
-    if (!getApiKey()) return { updated: 0, failed: 0, noKey: true }
+  async function refreshAllPrices(apiKey) {
+    if (!apiKey) return { updated: 0, failed: 0, noKey: true }
 
     setRefreshingPrices(true)
     let updated = 0
     let failed = 0
     for (let i = 0; i < investments.length; i += 1) {
       const inv = investments[i]
-      const price = await fetchPrice(inv.symbol)
+      const price = await fetchPrice(inv.symbol, apiKey)
       if (price) {
         await supabase
           .from('investments')

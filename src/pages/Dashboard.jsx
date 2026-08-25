@@ -12,6 +12,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { TrendingUp, TrendingDown, Wallet, Printer, Clock } from 'lucide-react'
 import { useCategories } from '../hooks/useCategories'
 import { useDashboardData } from '../hooks/useDashboardData'
 import { useUpcomingRecurring } from '../hooks/useUpcomingRecurring'
@@ -74,11 +75,12 @@ export default function Dashboard() {
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
+        <h1 className="page-title">Dashboard</h1>
         <button
           onClick={() => window.print()}
-          className="no-print rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600"
+          className="no-print flex items-center gap-1.5 rounded-pill border border-gray-300 px-3 py-1.5 text-sm shadow-sm dark:border-gray-600"
         >
+          <Printer size={15} />
           Afdrukken / PDF
         </button>
       </div>
@@ -88,7 +90,8 @@ export default function Dashboard() {
 
       {upcoming.length > 0 && (
         <div className="no-print mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
-          <h2 className="mb-2 font-semibold text-amber-800 dark:text-amber-200">
+          <h2 className="mb-2 flex items-center gap-1.5 font-semibold text-amber-800 dark:text-amber-200">
+            <Clock size={16} />
             Binnenkort verschuldigd
           </h2>
           <ul className="space-y-1 text-sm text-amber-900 dark:text-amber-100">
@@ -164,24 +167,45 @@ export default function Dashboard() {
       ) : (
         <>
           <div className="mb-6 grid gap-4 sm:grid-cols-3">
-            <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-              <div className="text-xs text-gray-500 dark:text-gray-400">Inkomsten</div>
-              <div className="text-xl font-semibold text-green-600 money">{formatAmount(totalIncome)}</div>
+            <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400">
+                  <TrendingUp size={16} />
+                </span>
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Inkomsten</span>
+              </div>
+              <div className="text-2xl font-semibold text-green-600 money">{formatAmount(totalIncome)}</div>
             </div>
-            <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-              <div className="text-xs text-gray-500 dark:text-gray-400">Uitgaven</div>
-              <div className="text-xl font-semibold text-red-600 money">{formatAmount(totalExpense)}</div>
+            <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400">
+                  <TrendingDown size={16} />
+                </span>
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Uitgaven</span>
+              </div>
+              <div className="text-2xl font-semibold text-red-600 money">{formatAmount(totalExpense)}</div>
             </div>
-            <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-              <div className="text-xs text-gray-500 dark:text-gray-400">Saldo</div>
-              <div className={`money text-xl font-semibold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
+              <div className="mb-2 flex items-center gap-2">
+                <span
+                  className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                    balance >= 0
+                      ? 'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400'
+                      : 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400'
+                  }`}
+                >
+                  <Wallet size={16} />
+                </span>
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Saldo</span>
+              </div>
+              <div className={`money text-2xl font-semibold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {formatAmount(balance)}
               </div>
             </div>
           </div>
 
           {Math.abs(sharedBalance) >= 0.01 && (
-            <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 text-sm dark:border-gray-700 dark:bg-gray-800">
+            <div className="mb-6 rounded-xl border border-gray-200 bg-white shadow-sm p-4 text-sm dark:border-gray-700 dark:bg-gray-800">
               <span className="font-semibold">Gedeelde balans: </span>
               {sharedBalance > 0
                 ? `je partner is jou ${formatAmount(sharedBalance)} verschuldigd (jij hebt meer voorgeschoten aan gedeelde uitgaven).`
@@ -190,7 +214,7 @@ export default function Dashboard() {
           )}
 
           <div className="mb-6 grid gap-4 lg:grid-cols-2">
-            <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+            <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
               <h2 className="mb-3 font-semibold">Uitgaven per categorie</h2>
               {byCategory.length === 0 ? (
                 <p className="text-sm text-gray-500 dark:text-gray-400">Geen uitgaven in deze periode.</p>
@@ -211,7 +235,7 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+            <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
               <h2 className="mb-3 font-semibold">Trend (laatste 12 maanden)</h2>
               <div style={{ width: '100%', height: 260 }}>
                 <ResponsiveContainer>

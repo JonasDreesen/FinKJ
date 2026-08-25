@@ -29,7 +29,7 @@ function NameList({ title, items, onAdd, onDelete, currentUserId }) {
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
       <h2 className="mb-3 font-semibold">{title}</h2>
       <form onSubmit={handleAdd} className="mb-3 flex gap-2">
         <input
@@ -40,7 +40,7 @@ function NameList({ title, items, onAdd, onDelete, currentUserId }) {
         />
         <button
           type="submit"
-          className="rounded-pill bg-brand-500 px-3 py-1.5 text-sm text-white hover:bg-brand-600"
+          className="rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-3 py-1.5 text-sm text-white hover:bg-brand-600"
         >
           Toevoegen
         </button>
@@ -119,7 +119,7 @@ function TemplateManager({ categories, currentUserId }) {
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
       <h2 className="mb-1 font-semibold">Sjablonen</h2>
       <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
         Voor kosten/inkomens die iedereen heeft, zoals loon, huur of abonnementen. Zichtbaar voor
@@ -172,7 +172,7 @@ function TemplateManager({ categories, currentUserId }) {
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button
           type="submit"
-          className="rounded-pill bg-brand-500 px-3 py-1.5 text-sm text-white hover:bg-brand-600"
+          className="rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-3 py-1.5 text-sm text-white hover:bg-brand-600"
         >
           Sjabloon toevoegen
         </button>
@@ -232,7 +232,7 @@ export default function Settings() {
 
   return (
     <div>
-      <h1 className="mb-4 text-2xl font-semibold">Instellingen</h1>
+      <h1 className="page-title mb-4">Instellingen</h1>
       <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
         Categorieën, tags en sjablonen zijn zichtbaar voor jullie beiden, maar enkel de maker kan
         ze verwijderen.
@@ -255,7 +255,7 @@ export default function Settings() {
       </div>
       <TemplateManager categories={categories} currentUserId={session?.user?.id} />
 
-      <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+      <div className="mt-4 rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
         <h2 className="mb-1 font-semibold">Volledige back-up</h2>
         <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
           Download al je zichtbare data (categorieën, tags, transacties, budgetten, spaardoelen,

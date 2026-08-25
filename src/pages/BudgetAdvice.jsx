@@ -79,14 +79,14 @@ export default function BudgetAdvice() {
 
   return (
     <div>
-      <h1 className="mb-1 text-2xl font-semibold">Hoe verdeel je jullie loon het best?</h1>
+      <h1 className="page-title mb-1">Hoe verdeel je jullie loon het best?</h1>
       <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
         Algemene richtlijnen op basis van erkende bronnen (Wikifin, Nibud, Test-Aankoop en de
         bekende 50/30/20-regel) — geen persoonlijk financieel advies, maar een goed startpunt om
         jullie eigen budgetten op de Budgetten-pagina op af te stemmen.
       </p>
 
-      <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+      <div className="mb-6 rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
         <h2 className="mb-2 font-semibold">De 50/30/20-regel (snelle vuistregel)</h2>
         <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">
           De eenvoudigste en meest gebruikte richtlijn verdeelt je netto-inkomen in drie grote
@@ -114,7 +114,7 @@ export default function BudgetAdvice() {
         </div>
       </div>
 
-      <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+      <div className="mb-6 rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
         <h2 className="mb-3 font-semibold">Gedetailleerde richtlijn per categorie</h2>
         <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">
           Vul jullie totale maandelijkse netto-inkomen (samen) in om te zien welk bedrag per
@@ -156,7 +156,7 @@ export default function BudgetAdvice() {
         </ul>
       </div>
 
-      <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+      <div className="mb-6 rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
         <h2 className="mb-2 font-semibold">Hoe verdeel je dit eerlijk met z'n tweeën?</h2>
         <p className="mb-2 text-sm text-gray-600 dark:text-gray-300">
           Voor de <strong>gedeelde</strong> kosten in deze app (wonen, boodschappen als jullie

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Inbox, Plus } from 'lucide-react'
 import { useCategories } from '../hooks/useCategories'
 import { useBudgets } from '../hooks/useBudgets'
 import { useSavingsGoals } from '../hooks/useSavingsGoals'
@@ -38,7 +39,7 @@ function BudgetForm({ categories, onSubmit, onCancel }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="mb-6 space-y-3 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+      className="mb-6 space-y-3 rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800"
     >
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
@@ -78,7 +79,7 @@ function BudgetForm({ categories, onSubmit, onCancel }) {
       </label>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-2">
-        <button type="submit" className="rounded-pill bg-brand-500 px-4 py-1.5 text-sm text-white hover:bg-brand-600">
+        <button type="submit" className="rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-4 py-1.5 text-sm text-white hover:bg-brand-600">
           Opslaan
         </button>
         <button type="button" onClick={onCancel} className="rounded-md border border-gray-300 px-4 py-1.5 text-sm dark:border-gray-600">
@@ -107,7 +108,7 @@ function GoalForm({ onSubmit, onCancel }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mb-4 space-y-3 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+    <form onSubmit={handleSubmit} className="mb-4 space-y-3 rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium">Naam</label>
@@ -128,7 +129,7 @@ function GoalForm({ onSubmit, onCancel }) {
       </label>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-2">
-        <button type="submit" className="rounded-pill bg-brand-500 px-4 py-1.5 text-sm text-white hover:bg-brand-600">Opslaan</button>
+        <button type="submit" className="rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-4 py-1.5 text-sm text-white hover:bg-brand-600">Opslaan</button>
         <button type="button" onClick={onCancel} className="rounded-md border border-gray-300 px-4 py-1.5 text-sm dark:border-gray-600">Annuleren</button>
       </div>
     </form>
@@ -176,7 +177,7 @@ function GoalRow({ goal, onUpdateAmount, onDelete, isPending, onUndo }) {
           />
           <button
             onClick={() => onUpdateAmount(goal.id, Number(amount))}
-            className="rounded-pill bg-brand-500 px-2 py-0.5 text-xs text-white hover:bg-brand-600"
+            className="rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-2 py-0.5 text-xs text-white hover:bg-brand-600"
           >
             Bijwerken
           </button>
@@ -199,7 +200,7 @@ export default function Budgets() {
 
   return (
     <div>
-      <h1 className="mb-4 text-2xl font-semibold">Budgetten</h1>
+      <h1 className="page-title mb-4">Budgetten</h1>
 
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -219,7 +220,7 @@ export default function Budgets() {
         </div>
         <button
           onClick={() => setBudgetFormOpen((v) => !v)}
-          className="rounded-pill bg-brand-500 px-3 py-1.5 text-sm text-white hover:bg-brand-600"
+          className="rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-3 py-1.5 text-sm text-white hover:bg-brand-600"
         >
           {budgetFormOpen ? 'Sluiten' : '+ Budget instellen'}
         </button>
@@ -240,7 +241,7 @@ export default function Budgets() {
       {loading ? (
         <p className="text-sm text-gray-500 dark:text-gray-400">Laden...</p>
       ) : lines.length === 0 ? (
-        <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">Nog geen budgetten ingesteld voor deze maand.</p>
+        <p className="mb-6 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400"><Inbox size={16} /> Nog geen budgetten ingesteld voor deze maand.</p>
       ) : (
         <ul className="mb-6 space-y-3">
           {lines.map((line) =>
@@ -258,7 +259,7 @@ export default function Budgets() {
                 </button>
               </li>
             ) : (
-            <li key={line.id} className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+            <li key={line.id} className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
               <div className="mb-1 flex items-center justify-between text-sm font-medium">
                 <span>
                   {line.category?.name || 'Onbekende categorie'}{' '}
@@ -302,7 +303,7 @@ export default function Budgets() {
         <h2 className="text-xl font-semibold">Spaardoelen</h2>
         <button
           onClick={() => setGoalFormOpen((v) => !v)}
-          className="rounded-pill bg-brand-500 px-3 py-1.5 text-sm text-white hover:bg-brand-600"
+          className="rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-3 py-1.5 text-sm text-white hover:bg-brand-600"
         >
           {goalFormOpen ? 'Sluiten' : '+ Spaardoel'}
         </button>
@@ -320,7 +321,7 @@ export default function Budgets() {
       )}
 
       {goals.length === 0 ? (
-        <p className="text-sm text-gray-500 dark:text-gray-400">Nog geen spaardoelen.</p>
+        <p className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400"><Inbox size={16} /> Nog geen spaardoelen.</p>
       ) : (
         <ul className="space-y-3">
           {goals.map((goal) => (

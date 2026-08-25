@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Inbox, Plus } from 'lucide-react'
 import { useCategories } from '../hooks/useCategories'
 import { useTags } from '../hooks/useTags'
 import { useTransactions } from '../hooks/useTransactions'
@@ -135,7 +136,7 @@ function RecurringEditForm({ template, categories, onSubmit, onCancel }) {
       </label>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-2">
-        <button type="submit" className="rounded-pill bg-brand-500 px-3 py-1.5 text-sm text-white hover:bg-brand-600">
+        <button type="submit" className="rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-3 py-1.5 text-sm text-white hover:bg-brand-600">
           Opslaan
         </button>
         <button type="button" onClick={onCancel} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600">
@@ -196,7 +197,7 @@ function TransactionForm({ initial, categories, tags, onSubmit, onCancel }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="mb-6 space-y-3 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+      className="mb-6 space-y-3 rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800"
     >
       <div className="flex gap-4">
         <label className="flex items-center gap-1 text-sm">
@@ -350,7 +351,7 @@ function TransactionForm({ initial, categories, tags, onSubmit, onCancel }) {
       <div className="flex gap-2">
         <button
           type="submit"
-          className="rounded-pill bg-brand-500 px-4 py-1.5 text-sm text-white hover:bg-brand-600"
+          className="rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-4 py-1.5 text-sm text-white hover:bg-brand-600"
         >
           Opslaan
         </button>
@@ -554,7 +555,7 @@ export default function Transactions() {
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">Transacties</h1>
+        <h1 className="page-title">Transacties</h1>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={handleExport}
@@ -582,7 +583,7 @@ export default function Transactions() {
               setFormKey((k) => k + 1)
               setFormOpen((v) => !v)
             }}
-            className="rounded-pill bg-brand-500 px-3 py-1.5 text-sm text-white hover:bg-brand-600"
+            className="rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-3 py-1.5 text-sm text-white hover:bg-brand-600"
           >
             {formOpen ? 'Sluiten' : '+ Nieuwe transactie'}
           </button>
@@ -674,7 +675,7 @@ export default function Transactions() {
       )}
 
       {recurringTemplates.length > 0 && (
-        <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+        <div className="mb-6 rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
           <h2 className="mb-2 font-semibold">Actieve terugkerende reeksen</h2>
           <ul className="space-y-1">
             {recurringTemplates.map((tmpl) => (
@@ -771,9 +772,9 @@ export default function Transactions() {
       {loading ? (
         <p className="text-sm text-gray-500 dark:text-gray-400">Laden...</p>
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-gray-500 dark:text-gray-400">Nog geen transacties.</p>
+        <p className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400"><Inbox size={16} /> Nog geen transacties.</p>
       ) : (
-        <ul className="divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white dark:divide-gray-700 dark:border-gray-700 dark:bg-gray-800">
+        <ul className="divide-y divide-gray-200 rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-700 dark:border-gray-700 dark:bg-gray-800">
           {filtered.map((t) =>
             transactionDeletion.isPending(t.id) ? (
               <li key={t.id} className="flex items-center justify-between bg-gray-50 px-4 py-3 text-sm text-gray-500 dark:bg-gray-900 dark:text-gray-400">

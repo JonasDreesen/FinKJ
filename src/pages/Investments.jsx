@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Inbox, Plus, TrendingUp } from 'lucide-react'
 import { useInvestments } from '../hooks/useInvestments'
 import { useUndoableDelete } from '../hooks/useUndoableDelete'
 import { friendlyError } from '../lib/errors'
@@ -88,7 +89,7 @@ function InvestmentForm({ onSubmit, onCancel, apiKey }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="mb-6 space-y-3 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+      className="mb-6 space-y-3 rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800"
     >
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
@@ -148,7 +149,7 @@ function InvestmentForm({ onSubmit, onCancel, apiKey }) {
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-2">
-        <button type="submit" className="rounded-pill bg-brand-500 px-4 py-1.5 text-sm text-white hover:bg-brand-600">
+        <button type="submit" className="rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-4 py-1.5 text-sm text-white hover:bg-brand-600">
           Opslaan
         </button>
         <button type="button" onClick={onCancel} className="rounded-md border border-gray-300 px-4 py-1.5 text-sm dark:border-gray-600">
@@ -175,7 +176,7 @@ function ManualPriceInput({ investment, onSetPrice }) {
       />
       <button
         onClick={() => value && onSetPrice(investment.id, Number(value))}
-        className="rounded-pill bg-brand-500 px-2 py-0.5 text-xs text-white hover:bg-brand-600"
+        className="rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-2 py-0.5 text-xs text-white hover:bg-brand-600"
       >
         Instellen
       </button>
@@ -201,7 +202,7 @@ function ApiKeyPanel({ apiKey, saveApiKey }) {
   }
 
   return (
-    <div className="mb-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+    <div className="mb-4 rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
       <button
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between text-left text-sm font-semibold"
@@ -231,7 +232,7 @@ function ApiKeyPanel({ apiKey, saveApiKey }) {
               placeholder="API-key"
               className="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
             />
-            <button type="submit" className="rounded-pill bg-brand-500 px-3 py-1.5 text-sm text-white hover:bg-brand-600">
+            <button type="submit" className="rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-3 py-1.5 text-sm text-white hover:bg-brand-600">
               Opslaan
             </button>
           </div>
@@ -283,7 +284,7 @@ export default function Investments() {
   return (
     <div>
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">Mijn beleggingsportefeuille</h1>
+        <h1 className="page-title">Mijn beleggingsportefeuille</h1>
         <div className="flex gap-2">
           <button
             onClick={handleRefreshPrices}
@@ -294,7 +295,7 @@ export default function Investments() {
           </button>
           <button
             onClick={() => setFormOpen((v) => !v)}
-            className="rounded-pill bg-brand-500 px-3 py-1.5 text-sm text-white hover:bg-brand-600"
+            className="rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-3 py-1.5 text-sm text-white hover:bg-brand-600"
           >
             {formOpen ? 'Sluiten' : '+ Positie toevoegen'}
           </button>
@@ -325,15 +326,15 @@ export default function Investments() {
 
       {!loading && investments.length > 0 && (
         <div className="mb-6 grid gap-4 sm:grid-cols-3">
-          <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+          <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
             <div className="text-xs text-gray-500 dark:text-gray-400">Totaal ingelegd</div>
             <div className="text-xl font-semibold money">{formatAmount(totals.cost)}</div>
           </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+          <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
             <div className="text-xs text-gray-500 dark:text-gray-400">Huidige waarde</div>
             <div className="text-xl font-semibold money">{formatAmount(totals.value)}</div>
           </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+          <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
             <div className="text-xs text-gray-500 dark:text-gray-400">Winst / verlies</div>
             <div className={`money text-xl font-semibold ${totals.gain >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {formatAmount(totals.gain)}
@@ -345,7 +346,7 @@ export default function Investments() {
       {loading ? (
         <p className="text-sm text-gray-500 dark:text-gray-400">Laden...</p>
       ) : rows.length === 0 ? (
-        <p className="text-sm text-gray-500 dark:text-gray-400">Nog geen posities toegevoegd.</p>
+        <p className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400"><Inbox size={16} /> Nog geen posities toegevoegd.</p>
       ) : (
         <ul className="space-y-3">
           {rows.map((r) =>
@@ -365,7 +366,7 @@ export default function Investments() {
             ) : (
               <li
                 key={r.id}
-                className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+                className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800"
               >
                 <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-sm font-medium">
                   <span>

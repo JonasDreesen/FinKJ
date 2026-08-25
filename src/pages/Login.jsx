@@ -26,8 +26,8 @@ export default function Login() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <h1 className="mb-6 text-xl font-semibold">Inloggen</h1>
+      <div className="w-full max-w-sm rounded-xl border border-gray-200 bg-white shadow-sm p-6 dark:border-gray-700 dark:bg-gray-800">
+        <h1 className="page-title mb-6">Inloggen</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="mb-1 block text-sm font-medium">E-mail</label>
@@ -53,7 +53,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-pill bg-brand-500 px-3 py-2 text-white hover:bg-brand-600 disabled:opacity-50"
+            className="w-full rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-3 py-2 text-white hover:bg-brand-600 disabled:opacity-50"
           >
             {submitting ? 'Bezig...' : 'Inloggen'}
           </button>

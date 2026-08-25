@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { loadCache, saveCache } from '../lib/offlineCache'
+import { fetchPrice, getApiKey } from '../lib/twelveData'
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 export function useInvestments() {
   const [investments, setInvestments] = useState(() => loadCache('investments') || [])
   const [loading, setLoading] = useState(true)
+  const [refreshingPrices, setRefreshingPrices] = useState(false)
 
   const refresh = useCallback(async () => {
     const { data, error } = await supabase
@@ -56,12 +62,39 @@ export function useInvestments() {
     })
   }
 
+  async function refreshAllPrices() {
+    if (!getApiKey()) return { updated: 0, failed: 0, noKey: true }
+
+    setRefreshingPrices(true)
+    let updated = 0
+    let failed = 0
+    for (let i = 0; i < investments.length; i += 1) {
+      const inv = investments[i]
+      const price = await fetchPrice(inv.symbol)
+      if (price) {
+        await supabase
+          .from('investments')
+          .update({ current_price: price, current_price_updated_at: new Date().toISOString() })
+          .eq('id', inv.id)
+        updated += 1
+      } else {
+        failed += 1
+      }
+      if (i < investments.length - 1) await wait(8000)
+    }
+    await refresh()
+    setRefreshingPrices(false)
+    return { updated, failed, noKey: false }
+  }
+
   return {
     investments,
     loading,
+    refreshingPrices,
     addInvestment,
     updateInvestment,
     deleteInvestment,
     setManualPrice,
+    refreshAllPrices,
   }
 }

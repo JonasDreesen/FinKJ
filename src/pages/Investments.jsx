@@ -1,11 +1,63 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useInvestments } from '../hooks/useInvestments'
 import { useUndoableDelete } from '../hooks/useUndoableDelete'
 import { friendlyError } from '../lib/errors'
 import { today } from '../lib/recurrence'
+import { getApiKey, searchSymbols, setApiKey } from '../lib/twelveData'
 
 function formatAmount(amount) {
   return new Intl.NumberFormat('nl-BE', { style: 'currency', currency: 'EUR' }).format(amount)
+}
+
+function SymbolPicker({ symbol, setSymbol, onPick }) {
+  const [suggestions, setSuggestions] = useState([])
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    const handle = setTimeout(async () => {
+      const results = await searchSymbols(symbol)
+      setSuggestions(results)
+    }, 400)
+    return () => clearTimeout(handle)
+  }, [symbol, open])
+
+  return (
+    <div className="relative">
+      <input
+        value={symbol}
+        onChange={(e) => {
+          setSymbol(e.target.value)
+          setOpen(true)
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder={getApiKey() ? 'Typ om te zoeken, bv. Apple' : 'AAPL.US'}
+        className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
+      />
+      {open && suggestions.length > 0 && (
+        <ul className="absolute z-10 mt-1 w-full rounded-md border border-gray-200 bg-white text-sm shadow-lg dark:border-gray-600 dark:bg-gray-800">
+          {suggestions.map((s) => (
+            <li key={`${s.symbol}-${s.exchange}`}>
+              <button
+                type="button"
+                onMouseDown={() => {
+                  onPick(s)
+                  setOpen(false)
+                }}
+                className="block w-full px-3 py-1.5 text-left hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <span className="font-medium">{s.symbol}</span>{' '}
+                <span className="text-gray-500 dark:text-gray-400">
+                  {s.name} · {s.exchange}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
 }
 
 function InvestmentForm({ onSubmit, onCancel }) {
@@ -40,11 +92,13 @@ function InvestmentForm({ onSubmit, onCancel }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium">Symbool / ticker</label>
-          <input
-            value={symbol}
-            onChange={(e) => setSymbol(e.target.value)}
-            placeholder="AAPL.US"
-            className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
+          <SymbolPicker
+            symbol={symbol}
+            setSymbol={setSymbol}
+            onPick={(s) => {
+              setSymbol(s.symbol)
+              if (!name) setName(s.name)
+            }}
           />
         </div>
         <div>
@@ -127,11 +181,77 @@ function ManualPriceInput({ investment, onSetPrice }) {
   )
 }
 
+function ApiKeyPanel() {
+  const [key, setKey] = useState(getApiKey())
+  const [saved, setSaved] = useState(false)
+  const [open, setOpen] = useState(!getApiKey())
+
+  function handleSave(e) {
+    e.preventDefault()
+    setApiKey(key.trim())
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  return (
+    <div className="mb-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between text-left text-sm font-semibold"
+      >
+        <span>Automatische koersen {getApiKey() ? '(sleutel ingesteld)' : '(nog niet ingesteld)'}</span>
+        <span className="text-xs text-blue-600">{open ? 'Sluiten' : 'Instellen'}</span>
+      </button>
+      {open && (
+        <form onSubmit={handleSave} className="mt-3 space-y-2">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Maak een gratis account op{' '}
+            <a
+              href="https://twelvedata.com/pricing"
+              target="_blank"
+              rel="noreferrer"
+              className="text-blue-600 hover:underline"
+            >
+              twelvedata.com/pricing
+            </a>{' '}
+            en plak hier je API-key. Wordt enkel lokaal in jouw browser bewaard, niet gedeeld.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <input
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              placeholder="API-key"
+              className="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
+            />
+            <button type="submit" className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700">
+              Opslaan
+            </button>
+          </div>
+          {saved && <p className="text-xs text-green-600">Opgeslagen.</p>}
+        </form>
+      )}
+    </div>
+  )
+}
+
 export default function Investments() {
-  const { investments, loading, addInvestment, deleteInvestment, setManualPrice } = useInvestments()
+  const { investments, loading, refreshingPrices, addInvestment, deleteInvestment, setManualPrice, refreshAllPrices } =
+    useInvestments()
   const deletion = useUndoableDelete(deleteInvestment)
 
   const [formOpen, setFormOpen] = useState(false)
+  const [refreshMessage, setRefreshMessage] = useState('')
+
+  async function handleRefreshPrices() {
+    const { updated, failed, noKey } = await refreshAllPrices()
+    if (noKey) {
+      setRefreshMessage('Stel eerst je API-key in bij "Automatische koersen" hierboven.')
+      return
+    }
+    setRefreshMessage(
+      `${updated} koers(en) bijgewerkt${failed > 0 ? `, ${failed} niet gevonden (vul die manueel in)` : ''}.`,
+    )
+  }
 
   const rows = useMemo(
     () =>
@@ -155,18 +275,32 @@ export default function Investments() {
     <div>
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold">Mijn beleggingsportefeuille</h1>
-        <button
-          onClick={() => setFormOpen((v) => !v)}
-          className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
-        >
-          {formOpen ? 'Sluiten' : '+ Positie toevoegen'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleRefreshPrices}
+            disabled={refreshingPrices || investments.length === 0}
+            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600"
+          >
+            {refreshingPrices ? 'Bezig...' : 'Koersen verversen'}
+          </button>
+          <button
+            onClick={() => setFormOpen((v) => !v)}
+            className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
+          >
+            {formOpen ? 'Sluiten' : '+ Positie toevoegen'}
+          </button>
+        </div>
       </div>
       <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-        Volledig privé — enkel jij ziet deze portefeuille. Er is geen live koppeling met je
-        broker: vul de actuele koers per positie hieronder zelf in (bv. via de app van je broker
-        of Google) en klik op "Instellen" om je winst/verlies bij te werken.
+        Volledig privé — enkel jij ziet deze portefeuille. Geen live koppeling met je broker,
+        maar met een gratis API-key kan de app koersen automatisch ophalen (of vul ze zelf in).
       </p>
+
+      <ApiKeyPanel />
+
+      {refreshMessage && (
+        <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">{refreshMessage}</p>
+      )}
 
       {formOpen && (
         <InvestmentForm

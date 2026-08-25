@@ -39,7 +39,7 @@ function InvestmentForm({ onSubmit, onCancel }) {
     >
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-medium">Symbool (Stooq, bv. AAPL.US)</label>
+          <label className="mb-1 block text-sm font-medium">Symbool / ticker</label>
           <input
             value={symbol}
             onChange={(e) => setSymbol(e.target.value)}
@@ -128,19 +128,10 @@ function ManualPriceInput({ investment, onSetPrice }) {
 }
 
 export default function Investments() {
-  const {
-    investments,
-    loading,
-    refreshingPrices,
-    addInvestment,
-    deleteInvestment,
-    setManualPrice,
-    refreshAllPrices,
-  } = useInvestments()
+  const { investments, loading, addInvestment, deleteInvestment, setManualPrice } = useInvestments()
   const deletion = useUndoableDelete(deleteInvestment)
 
   const [formOpen, setFormOpen] = useState(false)
-  const [refreshMessage, setRefreshMessage] = useState('')
 
   const rows = useMemo(
     () =>
@@ -160,41 +151,22 @@ export default function Investments() {
     return { cost, value, gain: value - cost }
   }, [rows])
 
-  async function handleRefreshPrices() {
-    const { updated, failed } = await refreshAllPrices()
-    setRefreshMessage(
-      `${updated} koers(en) bijgewerkt${failed > 0 ? `, ${failed} niet gevonden (vul die manueel in)` : ''}.`,
-    )
-  }
-
   return (
     <div>
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold">Mijn beleggingsportefeuille</h1>
-        <div className="flex gap-2">
-          <button
-            onClick={handleRefreshPrices}
-            disabled={refreshingPrices || investments.length === 0}
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600"
-          >
-            {refreshingPrices ? 'Bezig...' : 'Koersen verversen'}
-          </button>
-          <button
-            onClick={() => setFormOpen((v) => !v)}
-            className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
-          >
-            {formOpen ? 'Sluiten' : '+ Positie toevoegen'}
-          </button>
-        </div>
+        <button
+          onClick={() => setFormOpen((v) => !v)}
+          className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
+        >
+          {formOpen ? 'Sluiten' : '+ Positie toevoegen'}
+        </button>
       </div>
       <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-        Volledig privé — enkel jij ziet deze portefeuille. Koersen worden opgehaald via Stooq
-        (gratis, geen garantie voor elk symbool); lukt dat niet, vul de koers dan zelf in.
+        Volledig privé — enkel jij ziet deze portefeuille. Er is geen live koppeling met je
+        broker: vul de actuele koers per positie hieronder zelf in (bv. via de app van je broker
+        of Google) en klik op "Instellen" om je winst/verlies bij te werken.
       </p>
-
-      {refreshMessage && (
-        <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">{refreshMessage}</p>
-      )}
 
       {formOpen && (
         <InvestmentForm

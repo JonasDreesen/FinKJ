@@ -1,7 +1,18 @@
 import { useState } from 'react'
-import { Inbox, Plus } from 'lucide-react'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
+import { Inbox, Plus, LineChart as LineChartIcon } from 'lucide-react'
 import { useCategories } from '../hooks/useCategories'
 import { useBudgets } from '../hooks/useBudgets'
+import { useBudgetTrend } from '../hooks/useBudgetTrend'
 import { useSavingsGoals } from '../hooks/useSavingsGoals'
 import { monthStart, shiftMonth, formatMonthLabel } from '../lib/month'
 import { friendlyError } from '../lib/errors'
@@ -15,6 +26,41 @@ function barColor(percent) {
   if (percent >= 100) return 'bg-red-500'
   if (percent >= 80) return 'bg-amber-500'
   return 'bg-green-500'
+}
+
+function BudgetTrendChart() {
+  const { data, loading } = useBudgetTrend(6)
+  const hasData = data.some((d) => d.budget > 0 || d.spent > 0)
+
+  return (
+    <div className="card mb-6">
+      <h2 className="mb-3 flex items-center gap-1.5 text-xl font-semibold">
+        <LineChartIcon size={18} />
+        Budget vs. werkelijkheid (laatste 6 maanden)
+      </h2>
+      {loading ? (
+        <p className="text-sm text-gray-500 dark:text-gray-400">Laden...</p>
+      ) : !hasData ? (
+        <p className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+          <Inbox size={16} /> Nog geen budgetgeschiedenis om te tonen.
+        </p>
+      ) : (
+        <div style={{ width: '100%', height: 260 }}>
+          <ResponsiveContainer>
+            <BarChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} />
+              <Tooltip formatter={(value) => formatAmount(value)} />
+              <Legend />
+              <Bar dataKey="budget" name="Budget" fill="#8066ff" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="spent" name="Uitgegeven" fill="#533afd" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function BudgetForm({ categories, onSubmit, onCancel }) {
@@ -298,6 +344,8 @@ export default function Budgets() {
           )}
         </ul>
       )}
+
+      <BudgetTrendChart />
 
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-xl font-semibold">Spaardoelen</h2>

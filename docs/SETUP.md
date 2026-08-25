@@ -98,3 +98,9 @@ Stappen die jij zelf moet doen. Alles wat hier niet staat, is al door mij gerege
 1. Ga naar je Supabase project → **SQL Editor** → **New query**.
 2. Open `docs/sql/phase10_user_settings.sql` uit deze repo, kopieer de volledige inhoud en plak die in de SQL Editor.
 3. Klik **Run**. Dit maakt de tabel `user_settings` aan, zodat je Twelve Data API-key bewaard blijft op je account (en niet enkel lokaal in één browser).
+
+## Extra: automatische tekstherkenning (OCR) op bonnetjes + zoeken
+
+1. Ga naar je Supabase project → **SQL Editor** → **New query**.
+2. Open `docs/sql/phase11_receipt_text.sql` uit deze repo, kopieer de volledige inhoud en plak die in de SQL Editor.
+3. Klik **Run**. Dit voegt een `receipt_text` kolom toe aan transacties. Wanneer je een bonnetje-foto uploadt, wordt de tekst erop automatisch herkend (in de browser, gratis, geen API-key nodig) en opgeslagen — je kan er nadien op zoeken via het zoekveld bij Transacties, en het bedrag wordt automatisch voorgesteld als het leeg is.

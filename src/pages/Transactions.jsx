@@ -7,6 +7,7 @@ import { today } from '../lib/recurrence'
 import { downloadCsv, parseCsv, toCsv } from '../lib/csv'
 import { supabase } from '../lib/supabaseClient'
 import { resizeImage } from '../lib/image'
+import { extractReceiptText, guessAmountFromText } from '../lib/ocr'
 import { useTemplates } from '../hooks/useTemplates'
 import { friendlyError } from '../lib/errors'
 import { useUndoableDelete } from '../hooks/useUndoableDelete'
@@ -23,6 +24,7 @@ const emptyForm = {
   recurrenceInterval: 'monthly',
   recurrenceEndDate: '',
   receiptPath: '',
+  receiptText: '',
 }
 
 async function uploadReceipt(file) {
@@ -152,6 +154,7 @@ function TransactionForm({ initial, categories, tags, onSubmit, onCancel }) {
   const [error, setError] = useState('')
   const [uploadingReceipt, setUploadingReceipt] = useState(false)
   const [receiptUrl, setReceiptUrl] = useState(null)
+  const [ocrRunning, setOcrRunning] = useState(false)
 
   useEffect(() => {
     if (initial.receiptPath) {
@@ -182,6 +185,17 @@ function TransactionForm({ initial, categories, tags, onSubmit, onCancel }) {
       setError('Uploaden van de foto is mislukt.')
     }
     setUploadingReceipt(false)
+
+    setOcrRunning(true)
+    const text = await extractReceiptText(file)
+    setOcrRunning(false)
+    if (text) {
+      setForm((f) => ({
+        ...f,
+        receiptText: text,
+        amount: f.amount || String(guessAmountFromText(text) || ''),
+      }))
+    }
   }
 
   async function handleSubmit(e) {
@@ -270,10 +284,24 @@ function TransactionForm({ initial, categories, tags, onSubmit, onCancel }) {
         <label className="mb-1 block text-sm font-medium">Bonnetje (optioneel)</label>
         <input type="file" accept="image/*" capture="environment" onChange={handleReceiptChange} className="text-sm" />
         {uploadingReceipt && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Bezig met uploaden...</p>}
+        {ocrRunning && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Tekst herkennen op bonnetje...</p>}
         {receiptUrl && !uploadingReceipt && (
           <a href={receiptUrl} target="_blank" rel="noreferrer" className="mt-1 block text-xs text-brand-500 hover:underline">
             Bekijk geüploade foto
           </a>
+        )}
+        {form.receiptText && !ocrRunning && (
+          <details className="mt-1">
+            <summary className="cursor-pointer text-xs text-gray-500 dark:text-gray-400">
+              Herkende tekst bekijken/aanpassen
+            </summary>
+            <textarea
+              value={form.receiptText}
+              onChange={(e) => setForm((f) => ({ ...f, receiptText: e.target.value }))}
+              rows={4}
+              className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-700"
+            />
+          </details>
         )}
       </div>
 
@@ -422,7 +450,11 @@ export default function Transactions() {
 
     const query = searchQuery.trim().toLowerCase()
     if (query) {
-      result = result.filter((t) => (t.description || '').toLowerCase().includes(query))
+      result = result.filter(
+        (t) =>
+          (t.description || '').toLowerCase().includes(query) ||
+          (t.receipt_text || '').toLowerCase().includes(query),
+      )
     }
 
     const sorted = [...result]
@@ -446,6 +478,7 @@ export default function Transactions() {
       recurrenceInterval: form.recurrenceInterval,
       recurrenceEndDate: form.recurrenceEndDate,
       receiptPath: form.receiptPath || null,
+      receiptText: form.receiptText || null,
     })
     if (!result.error) {
       setFormOpen(false)
@@ -464,6 +497,7 @@ export default function Transactions() {
         occurred_on: form.occurredOn,
         is_shared: form.isShared,
         receipt_path: form.receiptPath || null,
+        receipt_text: form.receiptText || null,
         pending_review: false,
       },
       form.tagIds,
@@ -666,6 +700,7 @@ export default function Transactions() {
             recurrenceInterval: 'monthly',
             recurrenceEndDate: '',
             receiptPath: editing.receipt_path || '',
+            receiptText: editing.receipt_text || '',
           }}
           categories={categories}
           tags={tags}
@@ -754,7 +789,7 @@ export default function Transactions() {
         <input
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Zoeken op omschrijving..."
+          placeholder="Zoeken op omschrijving of bonnetje..."
           className="rounded-md border border-gray-300 px-3 py-1 text-sm dark:border-gray-600 dark:bg-gray-700"
         />
         <select

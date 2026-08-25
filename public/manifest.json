@@ -5,8 +5,8 @@
   "start_url": "/FinKJ/#/",
   "scope": "/FinKJ/",
   "display": "standalone",
-  "background_color": "#f9fafb",
-  "theme_color": "#2563eb",
+  "background_color": "#f6f9fc",
+  "theme_color": "#533afd",
   "icons": [
     {
       "src": "/FinKJ/icon.svg",

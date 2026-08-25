@@ -10,7 +10,7 @@ const CATEGORIES = [
     label: 'Wonen (huur/lening + energie)',
     min: 25,
     max: 35,
-    color: 'bg-blue-500',
+    color: 'bg-brand-500',
     note: 'Wikifin en het Nederlandse Nibud raden beide aan de totale woonkost (afbetaling of huur, plus energie/water) onder de 35% van je netto-inkomen te houden. Boven 40% loop je een reëel risico op betalingsproblemen bij een tegenslag.',
   },
   {
@@ -93,9 +93,9 @@ export default function BudgetAdvice() {
           delen:
         </p>
         <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-md bg-blue-50 p-3 dark:bg-blue-950">
-            <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">50%</div>
-            <div className="text-sm text-blue-900 dark:text-blue-200">
+          <div className="rounded-md bg-brand-50 p-3 dark:bg-brand-900">
+            <div className="text-2xl font-bold text-brand-600 dark:text-brand-300">50%</div>
+            <div className="text-sm text-brand-900 dark:text-brand-200">
               Noodzakelijke uitgaven: wonen, energie, verzekeringen, boodschappen
             </div>
           </div>

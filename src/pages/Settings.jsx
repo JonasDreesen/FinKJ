@@ -40,7 +40,7 @@ function NameList({ title, items, onAdd, onDelete, currentUserId }) {
         />
         <button
           type="submit"
-          className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
+          className="rounded-pill bg-brand-500 px-3 py-1.5 text-sm text-white hover:bg-brand-600"
         >
           Toevoegen
         </button>
@@ -56,7 +56,7 @@ function NameList({ title, items, onAdd, onDelete, currentUserId }) {
               <span className="line-through">{item.name}</span>
               <button
                 onClick={() => deletion.undo(item.id)}
-                className="text-xs font-medium text-blue-600 hover:underline"
+                className="text-xs font-medium text-brand-500 hover:underline"
               >
                 Ongedaan maken
               </button>
@@ -172,7 +172,7 @@ function TemplateManager({ categories, currentUserId }) {
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button
           type="submit"
-          className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
+          className="rounded-pill bg-brand-500 px-3 py-1.5 text-sm text-white hover:bg-brand-600"
         >
           Sjabloon toevoegen
         </button>
@@ -187,7 +187,7 @@ function TemplateManager({ categories, currentUserId }) {
               <span className="line-through">{tpl.name}</span>
               <button
                 onClick={() => deletion.undo(tpl.id)}
-                className="text-xs font-medium text-blue-600 hover:underline"
+                className="text-xs font-medium text-brand-500 hover:underline"
               >
                 Ongedaan maken
               </button>

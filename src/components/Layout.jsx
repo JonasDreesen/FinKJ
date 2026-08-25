@@ -50,8 +50,8 @@ export default function Layout() {
                 end={item.end}
                 className={({ isActive }) =>
                   isActive
-                    ? 'font-semibold text-blue-600'
-                    : 'text-gray-600 hover:text-blue-600 dark:text-gray-300'
+                    ? 'font-semibold text-brand-500'
+                    : 'text-gray-600 hover:text-brand-500 dark:text-gray-300'
                 }
               >
                 {item.label}
@@ -85,8 +85,8 @@ export default function Layout() {
                 onClick={() => setMenuOpen(false)}
                 className={({ isActive }) =>
                   isActive
-                    ? 'font-semibold text-blue-600'
-                    : 'text-gray-600 hover:text-blue-600 dark:text-gray-300'
+                    ? 'font-semibold text-brand-500'
+                    : 'text-gray-600 hover:text-brand-500 dark:text-gray-300'
                 }
               >
                 {item.label}

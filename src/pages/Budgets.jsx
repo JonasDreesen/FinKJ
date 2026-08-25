@@ -78,7 +78,7 @@ function BudgetForm({ categories, onSubmit, onCancel }) {
       </label>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-2">
-        <button type="submit" className="rounded-md bg-blue-600 px-4 py-1.5 text-sm text-white hover:bg-blue-700">
+        <button type="submit" className="rounded-pill bg-brand-500 px-4 py-1.5 text-sm text-white hover:bg-brand-600">
           Opslaan
         </button>
         <button type="button" onClick={onCancel} className="rounded-md border border-gray-300 px-4 py-1.5 text-sm dark:border-gray-600">
@@ -128,7 +128,7 @@ function GoalForm({ onSubmit, onCancel }) {
       </label>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-2">
-        <button type="submit" className="rounded-md bg-blue-600 px-4 py-1.5 text-sm text-white hover:bg-blue-700">Opslaan</button>
+        <button type="submit" className="rounded-pill bg-brand-500 px-4 py-1.5 text-sm text-white hover:bg-brand-600">Opslaan</button>
         <button type="button" onClick={onCancel} className="rounded-md border border-gray-300 px-4 py-1.5 text-sm dark:border-gray-600">Annuleren</button>
       </div>
     </form>
@@ -143,7 +143,7 @@ function GoalRow({ goal, onUpdateAmount, onDelete, isPending, onUndo }) {
     return (
       <li className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 p-3 text-sm text-gray-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-400">
         <span className="line-through">{goal.name}</span>
-        <button onClick={onUndo} className="text-xs font-medium text-blue-600 hover:underline">
+        <button onClick={onUndo} className="text-xs font-medium text-brand-500 hover:underline">
           Ongedaan maken
         </button>
       </li>
@@ -159,7 +159,7 @@ function GoalRow({ goal, onUpdateAmount, onDelete, isPending, onUndo }) {
         <button onClick={() => onDelete(goal.id)} className="text-xs text-red-600 hover:underline">Verwijderen</button>
       </div>
       <div className="mb-1 h-2 w-full rounded-full bg-gray-100 dark:bg-gray-700">
-        <div className="h-2 rounded-full bg-blue-600" style={{ width: `${percent}%` }} />
+        <div className="h-2 rounded-full bg-brand-500" style={{ width: `${percent}%` }} />
       </div>
       <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
         <span>
@@ -176,7 +176,7 @@ function GoalRow({ goal, onUpdateAmount, onDelete, isPending, onUndo }) {
           />
           <button
             onClick={() => onUpdateAmount(goal.id, Number(amount))}
-            className="rounded-md bg-blue-600 px-2 py-0.5 text-xs text-white hover:bg-blue-700"
+            className="rounded-pill bg-brand-500 px-2 py-0.5 text-xs text-white hover:bg-brand-600"
           >
             Bijwerken
           </button>
@@ -219,7 +219,7 @@ export default function Budgets() {
         </div>
         <button
           onClick={() => setBudgetFormOpen((v) => !v)}
-          className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
+          className="rounded-pill bg-brand-500 px-3 py-1.5 text-sm text-white hover:bg-brand-600"
         >
           {budgetFormOpen ? 'Sluiten' : '+ Budget instellen'}
         </button>
@@ -252,7 +252,7 @@ export default function Budgets() {
                 <span className="line-through">{line.category?.name || 'Onbekende categorie'}</span>
                 <button
                   onClick={() => budgetDeletion.undo(line.id)}
-                  className="text-xs font-medium text-blue-600 hover:underline"
+                  className="text-xs font-medium text-brand-500 hover:underline"
                 >
                   Ongedaan maken
                 </button>
@@ -268,7 +268,7 @@ export default function Budgets() {
                     </span>
                   )}
                   {line.rollover && (
-                    <span className="ml-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700 dark:bg-blue-900 dark:text-blue-200">
+                    <span className="ml-1 rounded-full bg-brand-100 px-2 py-0.5 text-xs text-brand-600 dark:bg-brand-900 dark:text-brand-200">
                       Rollover
                     </span>
                   )}
@@ -302,7 +302,7 @@ export default function Budgets() {
         <h2 className="text-xl font-semibold">Spaardoelen</h2>
         <button
           onClick={() => setGoalFormOpen((v) => !v)}
-          className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
+          className="rounded-pill bg-brand-500 px-3 py-1.5 text-sm text-white hover:bg-brand-600"
         >
           {goalFormOpen ? 'Sluiten' : '+ Spaardoel'}
         </button>

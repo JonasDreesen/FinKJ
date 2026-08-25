@@ -28,7 +28,7 @@ import {
   yearStart,
 } from '../lib/month'
 
-const COLORS = ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#db2777', '#65a30d']
+const COLORS = ['#533afd', '#16a34a', '#d97706', '#dc2626', '#8066ff', '#0891b2', '#db2777', '#65a30d']
 
 function formatAmount(amount) {
   return new Intl.NumberFormat('nl-BE', { style: 'currency', currency: 'EUR' }).format(amount)
@@ -116,8 +116,8 @@ export default function Dashboard() {
             <button
               key={opt.key}
               onClick={() => setPeriodType(opt.key)}
-              className={`rounded-md px-3 py-1 ${
-                periodType === opt.key ? 'bg-blue-600 text-white' : 'border border-gray-300 dark:border-gray-600'
+              className={`rounded-pill px-3 py-1 ${
+                periodType === opt.key ? 'bg-brand-500 text-white' : 'border border-gray-300 dark:border-gray-600'
               }`}
             >
               {opt.label}
@@ -166,15 +166,15 @@ export default function Dashboard() {
           <div className="mb-6 grid gap-4 sm:grid-cols-3">
             <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
               <div className="text-xs text-gray-500 dark:text-gray-400">Inkomsten</div>
-              <div className="text-xl font-semibold text-green-600">{formatAmount(totalIncome)}</div>
+              <div className="text-xl font-semibold text-green-600 money">{formatAmount(totalIncome)}</div>
             </div>
             <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
               <div className="text-xs text-gray-500 dark:text-gray-400">Uitgaven</div>
-              <div className="text-xl font-semibold text-red-600">{formatAmount(totalExpense)}</div>
+              <div className="text-xl font-semibold text-red-600 money">{formatAmount(totalExpense)}</div>
             </div>
             <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
               <div className="text-xs text-gray-500 dark:text-gray-400">Saldo</div>
-              <div className={`text-xl font-semibold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <div className={`money text-xl font-semibold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {formatAmount(balance)}
               </div>
             </div>

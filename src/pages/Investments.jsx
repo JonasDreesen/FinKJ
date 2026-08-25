@@ -146,7 +146,7 @@ function InvestmentForm({ onSubmit, onCancel }) {
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-2">
-        <button type="submit" className="rounded-md bg-blue-600 px-4 py-1.5 text-sm text-white hover:bg-blue-700">
+        <button type="submit" className="rounded-pill bg-brand-500 px-4 py-1.5 text-sm text-white hover:bg-brand-600">
           Opslaan
         </button>
         <button type="button" onClick={onCancel} className="rounded-md border border-gray-300 px-4 py-1.5 text-sm dark:border-gray-600">
@@ -173,7 +173,7 @@ function ManualPriceInput({ investment, onSetPrice }) {
       />
       <button
         onClick={() => value && onSetPrice(investment.id, Number(value))}
-        className="rounded-md bg-blue-600 px-2 py-0.5 text-xs text-white hover:bg-blue-700"
+        className="rounded-pill bg-brand-500 px-2 py-0.5 text-xs text-white hover:bg-brand-600"
       >
         Instellen
       </button>
@@ -200,7 +200,7 @@ function ApiKeyPanel() {
         className="flex w-full items-center justify-between text-left text-sm font-semibold"
       >
         <span>Automatische koersen {getApiKey() ? '(sleutel ingesteld)' : '(nog niet ingesteld)'}</span>
-        <span className="text-xs text-blue-600">{open ? 'Sluiten' : 'Instellen'}</span>
+        <span className="text-xs text-brand-500">{open ? 'Sluiten' : 'Instellen'}</span>
       </button>
       {open && (
         <form onSubmit={handleSave} className="mt-3 space-y-2">
@@ -210,7 +210,7 @@ function ApiKeyPanel() {
               href="https://twelvedata.com/pricing"
               target="_blank"
               rel="noreferrer"
-              className="text-blue-600 hover:underline"
+              className="text-brand-500 hover:underline"
             >
               twelvedata.com/pricing
             </a>{' '}
@@ -223,7 +223,7 @@ function ApiKeyPanel() {
               placeholder="API-key"
               className="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
             />
-            <button type="submit" className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700">
+            <button type="submit" className="rounded-pill bg-brand-500 px-3 py-1.5 text-sm text-white hover:bg-brand-600">
               Opslaan
             </button>
           </div>
@@ -285,7 +285,7 @@ export default function Investments() {
           </button>
           <button
             onClick={() => setFormOpen((v) => !v)}
-            className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
+            className="rounded-pill bg-brand-500 px-3 py-1.5 text-sm text-white hover:bg-brand-600"
           >
             {formOpen ? 'Sluiten' : '+ Positie toevoegen'}
           </button>
@@ -317,15 +317,15 @@ export default function Investments() {
         <div className="mb-6 grid gap-4 sm:grid-cols-3">
           <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
             <div className="text-xs text-gray-500 dark:text-gray-400">Totaal ingelegd</div>
-            <div className="text-xl font-semibold">{formatAmount(totals.cost)}</div>
+            <div className="text-xl font-semibold money">{formatAmount(totals.cost)}</div>
           </div>
           <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
             <div className="text-xs text-gray-500 dark:text-gray-400">Huidige waarde</div>
-            <div className="text-xl font-semibold">{formatAmount(totals.value)}</div>
+            <div className="text-xl font-semibold money">{formatAmount(totals.value)}</div>
           </div>
           <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
             <div className="text-xs text-gray-500 dark:text-gray-400">Winst / verlies</div>
-            <div className={`text-xl font-semibold ${totals.gain >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`money text-xl font-semibold ${totals.gain >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {formatAmount(totals.gain)}
             </div>
           </div>
@@ -347,7 +347,7 @@ export default function Investments() {
                 <span className="line-through">{r.name || r.symbol}</span>
                 <button
                   onClick={() => deletion.undo(r.id)}
-                  className="text-xs font-medium text-blue-600 hover:underline"
+                  className="text-xs font-medium text-brand-500 hover:underline"
                 >
                   Ongedaan maken
                 </button>

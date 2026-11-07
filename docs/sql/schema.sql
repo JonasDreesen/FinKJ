@@ -49,7 +49,7 @@ set search_path = ''
 as $$
   select coalesce(auth.jwt() ->> 'aal', 'aal1') = 'aal2'
     or not exists (
-      select 1 from auth.factors f
+      select 1 from auth.mfa_factors f
       where f.user_id = auth.uid() and f.status = 'verified'
     );
 $$;

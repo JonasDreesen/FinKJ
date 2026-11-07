@@ -479,6 +479,21 @@ grant execute on function public.mfa_ok() to authenticated;
 grant execute on function public.shared_balance() to authenticated;
 grant execute on function public.generate_due_recurring(date) to authenticated;
 
+-- Keep-alive: een gratis Supabase-project pauzeert na 7 dagen zonder
+-- activiteit. Een geplande GitHub Action roept deze functie om de paar dagen
+-- aan. Ze leest of schrijft geen enkele gegeven en geeft enkel "true" terug.
+create or replace function public.keepalive()
+returns boolean
+language sql
+stable
+set search_path = ''
+as $$
+  select true;
+$$;
+
+revoke all on function public.keepalive() from public;
+grant execute on function public.keepalive() to anon, authenticated;
+
 -- -----------------------------------------------------------------------------
 -- 8. Opslag voor bonnetjes
 --    Privé bucket, max 5 MB, enkel afbeeldingen. Je uploadt enkel in je eigen

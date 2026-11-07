@@ -2,6 +2,21 @@
 
 Stappen die jij zelf moet doen. Alles wat hier niet staat, zit in de code.
 
+## 0. Project gepauzeerd? Gratis herstellen
+
+Een gratis Supabase-project pauzeert automatisch na 7 dagen zonder activiteit. Je hebt **geen Pro-abonnement** nodig:
+
+1. Ga naar [supabase.com/dashboard](https://supabase.com/dashboard) en open het project.
+2. Klik **Restore project** (gratis). Na enkele minuten is alles terug, met al jullie gegevens.
+3. Voer stap 1 hieronder uit (die voegt ook de keep-alive-functie toe).
+4. GitHub → **Actions → Supabase keep-alive → Run workflow**. Wordt die groen, dan werkt het.
+
+Vanaf dan spreekt die workflow de database om de 3 dagen aan, zodat ze niet meer pauzeert. Ze leest geen gegevens: ze roept enkel een functie aan die `true` teruggeeft.
+
+> Staat er geen "Restore"-knop meer? Na 90 dagen gepauzeerd kan je het project niet meer herstellen, maar wel nog een back-up downloaden (Project → Database → Backups). Laat het me weten, dan zetten we die over naar een nieuw gratis project.
+>
+> GitHub zet geplande workflows stil in een publieke repo die 60 dagen geen nieuwe commits krijgt. Je krijgt dan een e-mail; één klik op **Enable workflow** volstaat.
+
 ## 1. Database bijwerken (verplicht na deze update)
 
 1. Supabase → **SQL Editor** → **New query**.

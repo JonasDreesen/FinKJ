@@ -1,968 +1,293 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Inbox, Plus } from 'lucide-react'
-import { useCategories } from '../hooks/useCategories'
-import { useTags } from '../hooks/useTags'
-import { useTransactions } from '../hooks/useTransactions'
-import { today } from '../lib/recurrence'
-import { downloadCsv, parseCsv, toCsv } from '../lib/csv'
-import { supabase } from '../lib/supabaseClient'
-import { resizeImage } from '../lib/image'
-import { extractReceiptText, guessAmountFromText } from '../lib/ocr'
-import { useTemplates } from '../hooks/useTemplates'
-import { friendlyError } from '../lib/errors'
-import { useUndoableDelete } from '../hooks/useUndoableDelete'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { CalendarClock, Plus, Repeat, Search, SearchX, X } from 'lucide-react'
+import { Card, EmptyState, Money, MonthSwitcher, PageHeader, Segmented, Skeleton } from '../components/ui'
+import TransactionRow from '../components/TransactionRow'
+import RecurringSheet from '../components/RecurringSheet'
+import { useCategories, useMembers, useRecurring, useTags, useTransactions } from '../hooks/useData'
+import { useTransactionSheet } from '../context/SheetContext'
+import { INTERVAL_LABELS, formatDate, formatDayHeading, monthRange, monthStart } from '../lib/dates'
+import { inRange, matchesScope, totals } from '../lib/finance'
+import { categoryColor } from '../lib/categories'
 
-const emptyForm = {
-  type: 'expense',
-  amount: '',
-  description: '',
-  categoryId: '',
-  occurredOn: today(),
-  isShared: false,
-  tagIds: [],
-  isRecurring: false,
-  recurrenceInterval: 'monthly',
-  recurrenceEndDate: '',
-  receiptPath: '',
-  receiptText: '',
-}
-
-async function uploadReceipt(file) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  const blob = await resizeImage(file)
-  const path = `${user.id}/${crypto.randomUUID()}.jpg`
-  const { error } = await supabase.storage.from('receipts').upload(path, blob, {
-    contentType: 'image/jpeg',
-  })
-  if (error) throw error
-  return path
-}
-
-async function getReceiptUrl(path) {
-  const { data, error } = await supabase.storage.from('receipts').createSignedUrl(path, 60)
-  if (error) return null
-  return data.signedUrl
-}
-
-function formatAmount(amount) {
-  return new Intl.NumberFormat('nl-BE', { style: 'currency', currency: 'EUR' }).format(amount)
-}
-
-function RecurringEditForm({ template, categories, onSubmit, onCancel }) {
-  const [amount, setAmount] = useState(String(template.amount))
-  const [description, setDescription] = useState(template.description || '')
-  const [categoryId, setCategoryId] = useState(template.category_id || '')
-  const [isShared, setIsShared] = useState(template.is_shared)
-  const [recurrenceInterval, setRecurrenceInterval] = useState(template.recurrence_interval)
-  const [recurrenceEndDate, setRecurrenceEndDate] = useState(template.recurrence_end_date || '')
-  const [error, setError] = useState('')
-
-  async function handleSubmit(e) {
-    e.preventDefault()
-    if (!amount || Number(amount) <= 0) {
-      setError('Vul een geldig bedrag in.')
-      return
-    }
-    const { error } = await onSubmit({
-      amount: Number(amount),
-      description,
-      category_id: categoryId || null,
-      is_shared: isShared,
-      recurrence_interval: recurrenceInterval,
-      recurrence_end_date: recurrenceEndDate || null,
-    })
-    if (error) setError(friendlyError(error, 'Opslaan mislukt.'))
-  }
-
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className="mt-2 space-y-2 rounded-md border border-gray-200 p-3 dark:border-gray-600"
-    >
-      <p className="text-xs text-gray-500 dark:text-gray-400">
-        Wijzigingen gelden voor toekomstige boekingen, niet voor al gegenereerde boekingen.
-      </p>
-      <div className="grid gap-2 sm:grid-cols-2">
-        <input
-          type="number"
-          step="0.01"
-          min="0.01"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
-        />
-        <input
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Omschrijving"
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
-        />
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2">
-        <select
-          value={categoryId}
-          onChange={(e) => setCategoryId(e.target.value)}
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
-        >
-          <option value="">Geen categorie</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <select
-          value={recurrenceInterval}
-          onChange={(e) => setRecurrenceInterval(e.target.value)}
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
-        >
-          <option value="weekly">Wekelijks</option>
-          <option value="monthly">Maandelijks</option>
-          <option value="yearly">Jaarlijks</option>
-        </select>
-      </div>
-      <div>
-        <label className="mb-1 block text-sm">Einddatum (optioneel)</label>
-        <input
-          type="date"
-          value={recurrenceEndDate}
-          onChange={(e) => setRecurrenceEndDate(e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
-        />
-      </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={isShared} onChange={(e) => setIsShared(e.target.checked)} />
-        Gedeeld
-      </label>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <div className="flex gap-2">
-        <button type="submit" className="rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-3 py-1.5 text-sm text-white hover:bg-brand-600">
-          Opslaan
-        </button>
-        <button type="button" onClick={onCancel} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600">
-          Annuleren
-        </button>
-      </div>
-    </form>
-  )
-}
-
-function suggestCategory(description, transactions) {
-  const query = description.trim().toLowerCase()
-  if (query.length < 3) return null
-
-  const counts = {}
-  for (const t of transactions || []) {
-    if (!t.category_id || !t.description) continue
-    const desc = t.description.toLowerCase()
-    if (desc.includes(query) || query.includes(desc)) {
-      counts[t.category_id] = (counts[t.category_id] || 0) + 1
-    }
-  }
-  const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]
-  return best ? best[0] : null
-}
-
-function TransactionForm({ initial, categories, tags, transactions, onSubmit, onCancel }) {
-  const [form, setForm] = useState(initial)
-  const [error, setError] = useState('')
-  const [uploadingReceipt, setUploadingReceipt] = useState(false)
-  const [receiptUrl, setReceiptUrl] = useState(null)
-  const [ocrRunning, setOcrRunning] = useState(false)
-  const [suggestedCategoryId, setSuggestedCategoryId] = useState(null)
-
-  useEffect(() => {
-    if (initial.receiptPath) {
-      getReceiptUrl(initial.receiptPath).then(setReceiptUrl)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  function toggleTag(tagId) {
-    setForm((f) => ({
-      ...f,
-      tagIds: f.tagIds.includes(tagId)
-        ? f.tagIds.filter((id) => id !== tagId)
-        : [...f.tagIds, tagId],
-    }))
-  }
-
-  async function handleReceiptChange(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setUploadingReceipt(true)
-    setError('')
-    try {
-      const path = await uploadReceipt(file)
-      setForm((f) => ({ ...f, receiptPath: path }))
-      setReceiptUrl(await getReceiptUrl(path))
-    } catch {
-      setError('Uploaden van de foto is mislukt.')
-    }
-    setUploadingReceipt(false)
-
-    setOcrRunning(true)
-    const text = await extractReceiptText(file)
-    setOcrRunning(false)
-    if (text) {
-      setForm((f) => ({
-        ...f,
-        receiptText: text,
-        amount: f.amount || String(guessAmountFromText(text) || ''),
-      }))
-      if (!form.categoryId && !form.description) {
-        setSuggestedCategoryId(suggestCategory(text.split('\n')[0] || '', transactions))
-      }
-    }
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault()
-    if (!form.amount || Number(form.amount) <= 0) {
-      setError('Vul een geldig bedrag in.')
-      return
-    }
-    const { error } = await onSubmit(form)
-    if (error) setError(friendlyError(error, 'Opslaan mislukt. Probeer opnieuw.'))
-  }
-
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className="mb-6 space-y-3 rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800"
-    >
-      <div className="flex gap-4">
-        <label className="flex items-center gap-1 text-sm">
-          <input
-            type="radio"
-            checked={form.type === 'expense'}
-            onChange={() => setForm((f) => ({ ...f, type: 'expense' }))}
-          />
-          Uitgave
-        </label>
-        <label className="flex items-center gap-1 text-sm">
-          <input
-            type="radio"
-            checked={form.type === 'income'}
-            onChange={() => setForm((f) => ({ ...f, type: 'income' }))}
-          />
-          Inkomst
-        </label>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <label className="mb-1 block text-sm font-medium">Bedrag (€)</label>
-          <input
-            type="number"
-            step="0.01"
-            min="0.01"
-            value={form.amount}
-            onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-            className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">Datum</label>
-          <input
-            type="date"
-            value={form.occurredOn}
-            onChange={(e) => setForm((f) => ({ ...f, occurredOn: e.target.value }))}
-            className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="mb-1 block text-sm font-medium">Omschrijving</label>
-        <input
-          value={form.description}
-          onChange={(e) => {
-            const description = e.target.value
-            setForm((f) => ({ ...f, description }))
-            if (!form.categoryId) {
-              setSuggestedCategoryId(suggestCategory(description, transactions))
-            } else {
-              setSuggestedCategoryId(null)
-            }
-          }}
-          className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
-        />
-      </div>
-
-      <div>
-        <label className="mb-1 block text-sm font-medium">Categorie</label>
-        <select
-          value={form.categoryId}
-          onChange={(e) => {
-            setForm((f) => ({ ...f, categoryId: e.target.value }))
-            setSuggestedCategoryId(null)
-          }}
-          className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
-        >
-          <option value="">Geen</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        {suggestedCategoryId &&
-          !form.categoryId &&
-          (() => {
-            const suggested = categories.find((c) => c.id === suggestedCategoryId)
-            if (!suggested) return null
-            return (
-              <button
-                type="button"
-                onClick={() => {
-                  setForm((f) => ({ ...f, categoryId: suggestedCategoryId }))
-                  setSuggestedCategoryId(null)
-                }}
-                className="mt-1 text-xs text-brand-500 hover:underline"
-              >
-                Voorstel: {suggested.name} toepassen?
-              </button>
-            )
-          })()}
-      </div>
-
-      <div>
-        <label className="mb-1 block text-sm font-medium">Bonnetje (optioneel)</label>
-        <input type="file" accept="image/*" capture="environment" onChange={handleReceiptChange} className="text-sm" />
-        {uploadingReceipt && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Bezig met uploaden...</p>}
-        {ocrRunning && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Tekst herkennen op bonnetje...</p>}
-        {receiptUrl && !uploadingReceipt && (
-          <a href={receiptUrl} target="_blank" rel="noreferrer" className="mt-1 block text-xs text-brand-500 hover:underline">
-            Bekijk geüploade foto
-          </a>
-        )}
-        {form.receiptText && !ocrRunning && (
-          <details className="mt-1">
-            <summary className="cursor-pointer text-xs text-gray-500 dark:text-gray-400">
-              Herkende tekst bekijken/aanpassen
-            </summary>
-            <textarea
-              value={form.receiptText}
-              onChange={(e) => setForm((f) => ({ ...f, receiptText: e.target.value }))}
-              rows={4}
-              className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-700"
-            />
-          </details>
-        )}
-      </div>
-
-      {tags.length > 0 && (
-        <div>
-          <label className="mb-1 block text-sm font-medium">Tags</label>
-          <div className="flex flex-wrap gap-3">
-            {tags.map((tag) => (
-              <label key={tag.id} className="flex items-center gap-1 text-sm">
-                <input
-                  type="checkbox"
-                  checked={form.tagIds.includes(tag.id)}
-                  onChange={() => toggleTag(tag.id)}
-                />
-                {tag.name}
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={form.isShared}
-          onChange={(e) => setForm((f) => ({ ...f, isShared: e.target.checked }))}
-        />
-        Gedeelde transactie (zichtbaar voor jullie beiden)
-      </label>
-
-      {!initial.id && (
-        <div className="rounded-md border border-gray-200 p-3 dark:border-gray-600">
-          <label className="mb-2 flex items-center gap-2 text-sm font-medium">
-            <input
-              type="checkbox"
-              checked={form.isRecurring}
-              onChange={(e) => setForm((f) => ({ ...f, isRecurring: e.target.checked }))}
-            />
-            Terugkerende transactie
-          </label>
-          {form.isRecurring && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-sm">Herhaling</label>
-                <select
-                  value={form.recurrenceInterval}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, recurrenceInterval: e.target.value }))
-                  }
-                  className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
-                >
-                  <option value="weekly">Wekelijks</option>
-                  <option value="monthly">Maandelijks</option>
-                  <option value="yearly">Jaarlijks</option>
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm">Einddatum (optioneel)</label>
-                <input
-                  type="date"
-                  value={form.recurrenceEndDate}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, recurrenceEndDate: e.target.value }))
-                  }
-                  className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {error && <p className="text-sm text-red-600">{error}</p>}
-
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          className="rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-4 py-1.5 text-sm text-white hover:bg-brand-600"
-        >
-          Opslaan
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-md border border-gray-300 px-4 py-1.5 text-sm dark:border-gray-600"
-        >
-          Annuleren
-        </button>
-      </div>
-    </form>
-  )
+function normalize(text) {
+  return String(text || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
 }
 
 export default function Transactions() {
-  const { categories } = useCategories()
-  const { tags } = useTags()
-  const {
-    transactions,
-    recurringTemplates,
-    loading,
-    addTransaction,
-    updateTransaction,
-    deleteTransaction,
-    stopRecurring,
-    confirmPendingReview,
-    refresh,
-  } = useTransactions()
+  const [params, setParams] = useSearchParams()
+  const [tab, setTab] = useState('list')
+  const [month, setMonth] = useState(monthStart())
+  const [query, setQuery] = useState('')
+  const [type, setType] = useState('all')
+  const [scope, setScope] = useState('all')
+  const [categoryId, setCategoryId] = useState('')
+  const [tagId, setTagId] = useState('')
+  const [editingRecurring, setEditingRecurring] = useState(null)
+  const pendingOnly = params.get('filter') === 'pending'
 
-  const { templates } = useTemplates()
-  const transactionDeletion = useUndoableDelete(deleteTransaction)
-  const recurringDeletion = useUndoableDelete(stopRecurring)
-  const [formOpen, setFormOpen] = useState(false)
-  const [formSeed, setFormSeed] = useState(emptyForm)
-  const [formKey, setFormKey] = useState(0)
-  const [editing, setEditing] = useState(null)
-  const [scopeFilter, setScopeFilter] = useState('all')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [sortBy, setSortBy] = useState('date-desc')
-  const [importMessage, setImportMessage] = useState('')
-  const fileInputRef = useRef(null)
-  const [recurringEditingId, setRecurringEditingId] = useState(null)
+  const { transactions, loading } = useTransactions()
+  const { recurring } = useRecurring()
+  const { categories, byId } = useCategories()
+  const { tags, byId: tagsById } = useTags()
+  const { nameOf } = useMembers()
+  const { openNew, openEdit } = useTransactionSheet()
 
-  function applyTemplate(tpl) {
-    setEditing(null)
-    setFormSeed({
-      ...emptyForm,
-      type: tpl.type,
-      amount: String(tpl.amount),
-      description: tpl.name,
-      categoryId: tpl.category_id || '',
-      isShared: tpl.is_shared,
-    })
-    setFormKey((k) => k + 1)
-    setFormOpen(true)
-  }
+  useEffect(() => {
+    if (params.get('nieuw')) {
+      openNew()
+      params.delete('nieuw')
+      setParams(params, { replace: true })
+    }
+  }, [params, setParams, openNew])
 
-  const pendingReview = useMemo(
-    () => transactions.filter((t) => t.pending_review),
-    [transactions],
-  )
-
+  const searching = query.trim().length > 0
   const filtered = useMemo(() => {
-    let result = transactions
-    if (scopeFilter === 'personal') result = result.filter((t) => !t.is_shared)
-    if (scopeFilter === 'shared') result = result.filter((t) => t.is_shared)
-
-    const query = searchQuery.trim().toLowerCase()
-    if (query) {
-      result = result.filter(
-        (t) =>
-          (t.description || '').toLowerCase().includes(query) ||
-          (t.receipt_text || '').toLowerCase().includes(query),
-      )
-    }
-
-    const sorted = [...result]
-    if (sortBy === 'date-desc') sorted.sort((a, b) => b.occurred_on.localeCompare(a.occurred_on))
-    if (sortBy === 'date-asc') sorted.sort((a, b) => a.occurred_on.localeCompare(b.occurred_on))
-    if (sortBy === 'amount-desc') sorted.sort((a, b) => Number(b.amount) - Number(a.amount))
-    if (sortBy === 'amount-asc') sorted.sort((a, b) => Number(a.amount) - Number(b.amount))
-    return sorted
-  }, [transactions, scopeFilter, searchQuery, sortBy])
-
-  async function handleAdd(form) {
-    const result = await addTransaction({
-      type: form.type,
-      amount: Number(form.amount),
-      description: form.description,
-      categoryId: form.categoryId,
-      occurredOn: form.occurredOn,
-      isShared: form.isShared,
-      tagIds: form.tagIds,
-      isRecurring: form.isRecurring,
-      recurrenceInterval: form.recurrenceInterval,
-      recurrenceEndDate: form.recurrenceEndDate,
-      receiptPath: form.receiptPath || null,
-      receiptText: form.receiptText || null,
-    })
-    if (!result.error) {
-      setFormOpen(false)
-    }
-    return result
-  }
-
-  async function handleEditSubmit(form) {
-    const result = await updateTransaction(
-      editing.id,
-      {
-        type: form.type,
-        amount: Number(form.amount),
-        description: form.description,
-        category_id: form.categoryId || null,
-        occurred_on: form.occurredOn,
-        is_shared: form.isShared,
-        receipt_path: form.receiptPath || null,
-        receipt_text: form.receiptText || null,
-        pending_review: false,
-      },
-      form.tagIds,
-    )
-    if (!result.error) setEditing(null)
-    return result
-  }
-
-  function startEdit(t) {
-    setEditing(t)
-    setFormOpen(false)
-  }
-
-  function handleExport() {
-    const headers = ['datum', 'type', 'bedrag', 'omschrijving', 'categorie', 'scope', 'tags']
-    const rows = transactions.map((t) => [
-      t.occurred_on,
-      t.type,
-      t.amount,
-      t.description || '',
-      t.category?.name || '',
-      t.is_shared ? 'gedeeld' : 'persoonlijk',
-      (t.transaction_tags || []).map((tt) => tt.tags?.name).filter(Boolean).join(';'),
-    ])
-    downloadCsv(`transacties-${today()}.csv`, toCsv(headers, rows))
-  }
-
-  function handleTaxExport() {
-    const year = new Date().getFullYear()
-    const taxTransactions = transactions.filter(
-      (t) => t.type === 'expense' && t.category?.tax_deductible && t.occurred_on.startsWith(String(year)),
-    )
-    const totalsByCategory = {}
-    for (const t of taxTransactions) {
-      const name = t.category?.name || 'Onbekend'
-      totalsByCategory[name] = (totalsByCategory[name] || 0) + Number(t.amount)
-    }
-
-    const headers = ['datum', 'categorie', 'bedrag', 'omschrijving']
-    const rows = taxTransactions.map((t) => [t.occurred_on, t.category?.name || '', t.amount, t.description || ''])
-    for (const [name, total] of Object.entries(totalsByCategory)) {
-      rows.push(['', `Totaal ${name}`, total.toFixed(2), ''])
-    }
-    downloadCsv(`fiscaal-jaaroverzicht-${year}.csv`, toCsv(headers, rows))
-  }
-
-  async function handleImportFile(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    e.target.value = ''
-
-    const text = await file.text()
-    const rows = parseCsv(text)
-    if (rows.length === 0) {
-      setImportMessage('Leeg of ongeldig bestand.')
-      return
-    }
-
-    const header = rows[0].map((h) => h.trim().toLowerCase())
-    const dataRows = rows.slice(1)
-
-    const idx = {
-      datum: header.indexOf('datum'),
-      type: header.indexOf('type'),
-      bedrag: header.indexOf('bedrag'),
-      omschrijving: header.indexOf('omschrijving'),
-      categorie: header.indexOf('categorie'),
-      scope: header.indexOf('scope'),
-      tags: header.indexOf('tags'),
-    }
-
-    if (idx.datum === -1 || idx.type === -1 || idx.bedrag === -1) {
-      setImportMessage('CSV mist verplichte kolommen (datum, type, bedrag).')
-      return
-    }
-
-    let imported = 0
-    let skipped = 0
-
-    for (const row of dataRows) {
-      const amount = Number(row[idx.bedrag])
-      const type = row[idx.type]?.trim()
-      const occurredOn = row[idx.datum]?.trim()
-      if (!amount || amount <= 0 || (type !== 'income' && type !== 'expense') || !occurredOn) {
-        skipped += 1
-        continue
+    const q = normalize(query.trim())
+    const range = monthRange(month)
+    return transactions.filter((t) => {
+      if (pendingOnly) return t.pending_review
+      if (!searching && !inRange(t, range)) return false
+      if (type !== 'all' && t.type !== type) return false
+      if (!matchesScope(t, scope)) return false
+      if (categoryId && (t.category_id || 'none') !== categoryId) return false
+      if (tagId && !(t.transaction_tags || []).some((tt) => tt.tag_id === tagId)) return false
+      if (q) {
+        const haystack = normalize(
+          [
+            t.description,
+            t.receipt_text,
+            byId.get(t.category_id)?.name,
+            String(t.amount).replace('.', ','),
+            ...(t.transaction_tags || []).map((tt) => tagsById.get(tt.tag_id)?.name),
+          ].join(' '),
+        )
+        if (!q.split(/\s+/).every((word) => haystack.includes(word))) return false
       }
-      const categoryName = idx.categorie !== -1 ? row[idx.categorie]?.trim() : ''
-      const category = categories.find((c) => c.name === categoryName)
-      const isShared = idx.scope !== -1 && row[idx.scope]?.trim().toLowerCase() === 'gedeeld'
+      return true
+    })
+  }, [transactions, query, searching, month, type, scope, categoryId, tagId, pendingOnly, byId, tagsById])
 
-      const { error } = await supabase.from('transactions').insert({
-        type,
-        amount,
-        description: idx.omschrijving !== -1 ? row[idx.omschrijving] : '',
-        category_id: category?.id || null,
-        occurred_on: occurredOn,
-        is_shared: isShared,
-      })
-      if (error) skipped += 1
-      else imported += 1
+  const groups = useMemo(() => {
+    const map = new Map()
+    for (const t of filtered) {
+      if (!map.has(t.occurred_on)) map.set(t.occurred_on, [])
+      map.get(t.occurred_on).push(t)
     }
+    return [...map.entries()]
+  }, [filtered])
 
-    setImportMessage(`${imported} transactie(s) geïmporteerd, ${skipped} overgeslagen.`)
-    await refresh()
-  }
+  const sums = totals(filtered)
+  const hasFilters = type !== 'all' || scope !== 'all' || categoryId || tagId
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="page-title">Transacties</h1>
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={handleExport}
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600"
-          >
-            Exporteren (CSV)
+      <PageHeader
+        title="Transacties"
+        actions={
+          <button className="btn btn-primary hidden sm:inline-flex" onClick={() => openNew()}>
+            <Plus size={18} /> Nieuw
           </button>
-          <button
-            onClick={handleTaxExport}
-            title="Enkel transacties in categorieën die je als 'fiscaal' hebt gemarkeerd bij Instellingen, voor het huidige jaar"
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600"
-          >
-            Fiscaal jaaroverzicht
-          </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600"
-          >
-            Importeren (CSV)
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            onChange={handleImportFile}
-            className="hidden"
-          />
-          <button
-            onClick={() => {
-              setEditing(null)
-              setFormSeed(emptyForm)
-              setFormKey((k) => k + 1)
-              setFormOpen((v) => !v)
-            }}
-            className="rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-3 py-1.5 text-sm text-white hover:bg-brand-600"
-          >
-            {formOpen ? 'Sluiten' : '+ Nieuwe transactie'}
-          </button>
-        </div>
-      </div>
+        }
+      />
 
-      {templates.length > 0 && (
-        <div className="mb-4 flex flex-wrap gap-2">
-          {templates.map((tpl) => (
-            <button
-              key={tpl.id}
-              onClick={() => applyTemplate(tpl)}
-              className="rounded-full border border-brand-300 bg-brand-50 px-3 py-1 text-xs text-brand-600 hover:bg-brand-100 dark:border-brand-600 dark:bg-brand-900 dark:text-brand-200"
-            >
-              ⚡ {tpl.name}
-            </button>
-          ))}
-        </div>
-      )}
+      <Segmented
+        className="mb-4"
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: 'list', label: 'Overzicht' },
+          { value: 'recurring', label: `Vaste lasten (${recurring.length})` },
+        ]}
+      />
 
-      {importMessage && (
-        <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">{importMessage}</p>
-      )}
-
-      {pendingReview.length > 0 && (
-        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
-          <h2 className="mb-2 font-semibold text-amber-800 dark:text-amber-200">
-            Te bevestigen ({pendingReview.length})
-          </h2>
-          <p className="mb-2 text-xs text-amber-800 dark:text-amber-200">
-            Automatisch aangemaakt vanuit een terugkerende reeks. Controleer het bedrag en
-            bevestig, of pas aan indien het deze keer afwijkt.
-          </p>
-          <ul className="space-y-1">
-            {pendingReview.map((t) => (
-              <li key={t.id} className="flex items-center justify-between text-sm text-amber-900 dark:text-amber-100">
-                <span>
-                  {t.description || '(geen omschrijving)'} — {formatAmount(t.amount)} ({t.occurred_on})
-                </span>
-                <span className="flex gap-2">
-                  <button onClick={() => startEdit(t)} className="text-xs text-brand-500 hover:underline">
-                    Aanpassen
-                  </button>
-                  <button
-                    onClick={() => confirmPendingReview(t.id)}
-                    className="text-xs text-green-700 hover:underline dark:text-green-400"
-                  >
-                    Bevestigen
-                  </button>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {formOpen && (
-        <TransactionForm
-          key={formKey}
-          initial={formSeed}
-          categories={categories}
-          tags={tags}
-          transactions={transactions}
-          onSubmit={handleAdd}
-          onCancel={() => setFormOpen(false)}
-        />
-      )}
-
-      {editing && (
-        <TransactionForm
-          initial={{
-            id: editing.id,
-            type: editing.type,
-            amount: String(editing.amount),
-            description: editing.description || '',
-            categoryId: editing.category_id || '',
-            occurredOn: editing.occurred_on,
-            isShared: editing.is_shared,
-            tagIds: editing.transaction_tags?.map((tt) => tt.tag_id) || [],
-            isRecurring: false,
-            recurrenceInterval: 'monthly',
-            recurrenceEndDate: '',
-            receiptPath: editing.receipt_path || '',
-            receiptText: editing.receipt_text || '',
-          }}
-          categories={categories}
-          tags={tags}
-          transactions={transactions}
-          onSubmit={handleEditSubmit}
-          onCancel={() => setEditing(null)}
-        />
-      )}
-
-      {recurringTemplates.length > 0 && (
-        <div className="mb-6 rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
-          <h2 className="mb-2 font-semibold">Actieve terugkerende reeksen</h2>
-          <ul className="space-y-1">
-            {recurringTemplates.map((tmpl) => (
-              <li key={tmpl.id} className="text-sm">
-                <div className="flex items-center justify-between">
-                  <span>
-                    {tmpl.description || '(geen omschrijving)'} — {formatAmount(tmpl.amount)} (
-                    {tmpl.recurrence_interval === 'weekly' && 'wekelijks'}
-                    {tmpl.recurrence_interval === 'monthly' && 'maandelijks'}
-                    {tmpl.recurrence_interval === 'yearly' && 'jaarlijks'})
-                  </span>
-                  <span className="flex gap-2">
-                    {recurringDeletion.isPending(tmpl.id) ? (
-                      <button
-                        onClick={() => recurringDeletion.undo(tmpl.id)}
-                        className="text-xs font-medium text-brand-500 hover:underline"
-                      >
-                        Ongedaan maken
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() =>
-                            setRecurringEditingId((id) => (id === tmpl.id ? null : tmpl.id))
-                          }
-                          className="text-xs text-brand-500 hover:underline"
-                        >
-                          {recurringEditingId === tmpl.id ? 'Sluiten' : 'Bewerken'}
-                        </button>
-                        <button
-                          onClick={() => recurringDeletion.scheduleDelete(tmpl.id)}
-                          className="text-xs text-red-600 hover:underline"
-                        >
-                          Stoppen
-                        </button>
-                      </>
-                    )}
-                  </span>
-                </div>
-                {recurringEditingId === tmpl.id && (
-                  <RecurringEditForm
-                    template={tmpl}
-                    categories={categories}
-                    onSubmit={async (fields) => {
-                      const result = await updateTransaction(tmpl.id, fields)
-                      if (!result.error) setRecurringEditingId(null)
-                      return result
-                    }}
-                    onCancel={() => setRecurringEditingId(null)}
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
-        {[
-          { key: 'all', label: 'Alles' },
-          { key: 'personal', label: 'Persoonlijk' },
-          { key: 'shared', label: 'Gedeeld' },
-        ].map((opt) => (
-          <button
-            key={opt.key}
-            onClick={() => setScopeFilter(opt.key)}
-            className={`rounded-pill px-3 py-1 ${
-              scopeFilter === opt.key
-                ? 'bg-brand-500 text-white'
-                : 'border border-gray-300 dark:border-gray-600'
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-        <input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Zoeken op omschrijving of bonnetje..."
-          className="rounded-md border border-gray-300 px-3 py-1 text-sm dark:border-gray-600 dark:bg-gray-700"
-        />
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-          className="rounded-md border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700"
-        >
-          <option value="date-desc">Datum (nieuw → oud)</option>
-          <option value="date-asc">Datum (oud → nieuw)</option>
-          <option value="amount-desc">Bedrag (hoog → laag)</option>
-          <option value="amount-asc">Bedrag (laag → hoog)</option>
-        </select>
-      </div>
-
-      {loading ? (
-        <p className="text-sm text-gray-500 dark:text-gray-400">Laden...</p>
-      ) : filtered.length === 0 ? (
-        <p className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400"><Inbox size={16} /> Nog geen transacties.</p>
-      ) : (
-        <ul className="divide-y divide-gray-200 rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-700 dark:border-gray-700 dark:bg-gray-800">
-          {filtered.map((t) =>
-            transactionDeletion.isPending(t.id) ? (
-              <li key={t.id} className="flex items-center justify-between bg-gray-50 px-4 py-3 text-sm text-gray-500 dark:bg-gray-900 dark:text-gray-400">
-                <span className="line-through">{t.description || '(geen omschrijving)'}</span>
-                <button
-                  onClick={() => transactionDeletion.undo(t.id)}
-                  className="text-xs font-medium text-brand-500 hover:underline"
-                >
-                  Ongedaan maken
+      {tab === 'recurring' ? (
+        <Card className="p-2 sm:p-3">
+          {recurring.length === 0 ? (
+            <EmptyState
+              icon={Repeat}
+              title="Geen vaste lasten"
+              text="Zet 'Herhalen' aan bij een nieuwe transactie voor huur, loon of abonnementen."
+              action={
+                <button className="btn btn-primary btn-sm" onClick={() => openNew({ is_recurring: true })}>
+                  <Plus size={16} /> Vaste last toevoegen
                 </button>
-              </li>
-            ) : (
-              <li key={t.id} className="flex items-center justify-between px-4 py-3">
-                <div>
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <span>{t.description || '(geen omschrijving)'}</span>
-                    {t.category && (
-                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs dark:bg-gray-700">
-                        {t.category.name}
-                      </span>
-                    )}
-                    {t.is_shared && (
-                      <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900 dark:text-purple-200">
-                        Gedeeld
-                      </span>
-                    )}
-                    {t.parent_transaction_id && (
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-900 dark:text-amber-200">
-                        Terugkerend
-                      </span>
-                    )}
-                    {t.pending_review && (
-                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700 dark:bg-red-900 dark:text-red-200">
-                        Te bevestigen
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">{t.occurred_on}</div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span
-                    className={
-                      t.type === 'income'
-                        ? 'money font-semibold text-green-600'
-                        : 'money font-semibold text-red-600'
-                    }
-                  >
-                    {t.type === 'income' ? '+' : '-'}
-                    {formatAmount(t.amount)}
-                  </span>
-                  {t.receipt_path && (
+              }
+            />
+          ) : (
+            <ul className="divide-y divide-line/60">
+              {recurring.map((r) => {
+                const cat = byId.get(r.category_id)
+                return (
+                  <li key={r.id}>
                     <button
-                      onClick={async () => {
-                        const url = await getReceiptUrl(t.receipt_path)
-                        if (url) window.open(url, '_blank')
-                      }}
-                      className="text-xs text-brand-500 hover:underline"
+                      onClick={() => setEditingRecurring(r)}
+                      className="flex w-full items-center gap-3 rounded-2xl px-2 py-3 text-left hover:bg-surface-2"
                     >
-                      Bon
+                      <span
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl"
+                        style={{ backgroundColor: `${categoryColor(cat)}1f`, color: categoryColor(cat) }}
+                      >
+                        <Repeat size={18} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium">{r.description || cat?.name || 'Vaste last'}</span>
+                        <span className="block truncate text-xs text-muted">
+                          {INTERVAL_LABELS[r.recurrence_interval]}
+                          {r.is_shared && ' · gedeeld'}
+                          {r.next_due_date
+                            ? ` · volgende ${formatDate(r.next_due_date, { day: 'numeric', month: 'short' })}`
+                            : ' · afgelopen'}
+                        </span>
+                      </span>
+                      <Money
+                        amount={r.type === 'income' ? r.amount : -r.amount}
+                        sign
+                        className={`font-semibold ${r.type === 'income' ? 'text-income' : ''}`}
+                      />
                     </button>
-                  )}
-                  <button onClick={() => startEdit(t)} className="text-xs text-brand-500 hover:underline">
-                    Bewerken
-                  </button>
-                  <button
-                    onClick={() => transactionDeletion.scheduleDelete(t.id)}
-                    className="text-xs text-red-600 hover:underline"
-                  >
-                    Verwijderen
-                  </button>
-                </div>
-              </li>
-            ),
+                  </li>
+                )
+              })}
+            </ul>
           )}
-        </ul>
+        </Card>
+      ) : (
+        <>
+          <div className="sticky top-[env(safe-area-inset-top)] z-20 -mx-4 mb-4 space-y-3 bg-bg/90 px-4 pb-3 pt-1 backdrop-blur sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:backdrop-blur-0">
+            <div className="relative">
+              <Search size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+              <input
+                type="search"
+                className="input pl-10 pr-10"
+                placeholder="Zoek op omschrijving, bonnetje, bedrag of tag"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              {query && (
+                <button className="icon-btn absolute right-1 top-1/2 -translate-y-1/2" onClick={() => setQuery('')} aria-label="Wissen">
+                  <X size={18} />
+                </button>
+              )}
+            </div>
+            <div className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
+              {pendingOnly ? (
+                <button className="chip shrink-0 bg-amber-100 py-1.5 text-amber-700" onClick={() => setParams({})}>
+                  <CalendarClock size={14} /> Enkel te bevestigen <X size={14} />
+                </button>
+              ) : (
+                !searching && <MonthSwitcher date={month} onChange={setMonth} />
+              )}
+              <select className="input min-h-[40px] w-auto shrink-0 py-0 text-sm" value={type} onChange={(e) => setType(e.target.value)} aria-label="Soort">
+                <option value="all">In &amp; uit</option>
+                <option value="expense">Uitgaven</option>
+                <option value="income">Inkomsten</option>
+              </select>
+              <select className="input min-h-[40px] w-auto shrink-0 py-0 text-sm" value={scope} onChange={(e) => setScope(e.target.value)} aria-label="Scope">
+                <option value="all">Iedereen</option>
+                <option value="personal">Persoonlijk</option>
+                <option value="shared">Gedeeld</option>
+              </select>
+              <select className="input min-h-[40px] w-auto shrink-0 py-0 text-sm" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} aria-label="Categorie">
+                <option value="">Alle categorieën</option>
+                <option value="none">Zonder categorie</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              {tags.length > 0 && (
+                <select className="input min-h-[40px] w-auto shrink-0 py-0 text-sm" value={tagId} onChange={(e) => setTagId(e.target.value)} aria-label="Tag">
+                  <option value="">Alle tags</option>
+                  {tags.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      #{t.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {hasFilters && (
+                <button
+                  className="btn btn-ghost btn-sm shrink-0"
+                  onClick={() => {
+                    setType('all')
+                    setScope('all')
+                    setCategoryId('')
+                    setTagId('')
+                  }}
+                >
+                  Wissen
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="mb-4 grid grid-cols-3 gap-2 text-center">
+            <div className="card p-3">
+              <p className="text-[11px] text-muted">In</p>
+              <Money amount={sums.income} className="text-sm font-semibold text-income" />
+            </div>
+            <div className="card p-3">
+              <p className="text-[11px] text-muted">Uit</p>
+              <Money amount={sums.expense} className="text-sm font-semibold" />
+            </div>
+            <div className="card p-3">
+              <p className="text-[11px] text-muted">Netto</p>
+              <Money amount={sums.net} sign className="text-sm font-semibold" tone="auto" />
+            </div>
+          </div>
+
+          {loading && !transactions.length ? (
+            <div className="space-y-3">
+              {[0, 1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-16" />
+              ))}
+            </div>
+          ) : groups.length === 0 ? (
+            <Card>
+              {searching || hasFilters || pendingOnly ? (
+                <EmptyState icon={SearchX} title="Niets gevonden" text="Probeer een andere zoekterm of filter." />
+              ) : (
+                <EmptyState
+                  title="Nog geen transacties deze maand"
+                  text="Tik op + om een uitgave of inkomst toe te voegen."
+                  action={
+                    <button className="btn btn-primary btn-sm" onClick={() => openNew()}>
+                      <Plus size={16} /> Toevoegen
+                    </button>
+                  }
+                />
+              )}
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {groups.map(([day, rows]) => {
+                const dayNet = totals(rows).net
+                return (
+                  <Card key={day} className="p-2 sm:p-3">
+                    <div className="flex items-center justify-between px-2 pb-1 pt-1.5 text-xs font-medium text-muted">
+                      <span>{formatDayHeading(day)}</span>
+                      <Money amount={dayNet} sign />
+                    </div>
+                    <ul>
+                      {rows.map((t) => (
+                        <TransactionRow key={t.id} t={t} category={byId.get(t.category_id)} nameOf={nameOf} onClick={() => openEdit(t)} />
+                      ))}
+                    </ul>
+                  </Card>
+                )
+              })}
+              {searching && <p className="text-center text-xs text-muted">{filtered.length} resultaten in alle maanden</p>}
+            </div>
+          )}
+        </>
       )}
+
+      {editingRecurring && <RecurringSheet item={editingRecurring} onClose={() => setEditingRecurring(null)} />}
     </div>
   )
 }

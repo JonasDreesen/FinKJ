@@ -1,24 +1,26 @@
-import { supabase } from './supabaseClient'
+import { supabase, fetchAll } from './supabase'
+import { downloadFile } from './csv'
+import { todayISO } from './dates'
 
-const TABLES = ['categories', 'tags', 'transactions', 'transaction_tags', 'budgets', 'savings_goals', 'transaction_templates']
+// Persoonlijke instellingen (zoals je API-sleutel) worden bewust NIET mee
+// geëxporteerd: een back-upbestand mag geen geheimen bevatten.
+const TABLES = [
+  'app_members',
+  'categories',
+  'tags',
+  'transactions',
+  'transaction_tags',
+  'transaction_templates',
+  'budgets',
+  'savings_goals',
+  'settlements',
+  'investments',
+]
 
-export async function fetchFullBackup() {
-  const backup = { exportedAt: new Date().toISOString() }
+export async function downloadFullBackup() {
+  const backup = { app: 'FinKJ', version: 2, exportedAt: new Date().toISOString() }
   for (const table of TABLES) {
-    const { data, error } = await supabase.from(table).select('*')
-    backup[table] = error ? [] : data
+    backup[table] = await fetchAll(() => supabase.from(table).select('*'))
   }
-  return backup
-}
-
-export function downloadJson(filename, data) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  downloadFile(`finkj-backup-${todayISO()}.json`, JSON.stringify(backup, null, 2), 'application/json')
 }

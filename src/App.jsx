@@ -1,55 +1,67 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
-import Layout from './components/Layout'
+import { PrefsProvider } from './context/PrefsContext'
+import { ToastProvider } from './context/ToastContext'
+import { SheetProvider } from './context/SheetContext'
+import AppShell from './components/AppShell'
+import { Spinner } from './components/ui'
 import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import Transactions from './pages/Transactions'
-import Budgets from './pages/Budgets'
-import Settings from './pages/Settings'
-import BudgetAdvice from './pages/BudgetAdvice'
-import Investments from './pages/Investments'
+import StatusScreen from './pages/StatusScreen'
 
-function RequireAuth({ children }) {
-  const { session, loading } = useAuth()
+const Overview = lazy(() => import('./pages/Overview'))
+const Transactions = lazy(() => import('./pages/Transactions'))
+const Budgets = lazy(() => import('./pages/Budgets'))
+const Together = lazy(() => import('./pages/Together'))
+const Investments = lazy(() => import('./pages/Investments'))
+const Advice = lazy(() => import('./pages/Advice'))
+const Settings = lazy(() => import('./pages/Settings'))
+const More = lazy(() => import('./pages/More'))
 
-  if (loading) {
-    return <div className="flex min-h-screen items-center justify-center">Laden...</div>
-  }
-
-  if (!session) {
-    return <Navigate to="/login" replace />
-  }
-
-  return children
+function FullscreenSpinner() {
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <Spinner className="h-7 w-7" />
+    </div>
+  )
 }
 
-function AppRoutes() {
+function Gate() {
+  const { status } = useAuth()
+
+  if (status === 'loading') return <FullscreenSpinner />
+  if (status === 'signedOut' || status === 'mfa') return <Login />
+  if (status !== 'ready') return <StatusScreen status={status} />
+
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route
-        path="/"
-        element={
-          <RequireAuth>
-            <Layout />
-          </RequireAuth>
-        }
-      >
-        <Route index element={<Dashboard />} />
-        <Route path="transacties" element={<Transactions />} />
-        <Route path="budgetten" element={<Budgets />} />
-        <Route path="budgetadvies" element={<BudgetAdvice />} />
-        <Route path="beleggingen" element={<Investments />} />
-        <Route path="instellingen" element={<Settings />} />
-      </Route>
-    </Routes>
+    <SheetProvider>
+      <Suspense fallback={<FullscreenSpinner />}>
+        <Routes>
+          <Route element={<AppShell />}>
+            <Route index element={<Overview />} />
+            <Route path="transacties" element={<Transactions />} />
+            <Route path="budgetten" element={<Budgets />} />
+            <Route path="samen" element={<Together />} />
+            <Route path="beleggingen" element={<Investments />} />
+            <Route path="advies" element={<Advice />} />
+            <Route path="instellingen" element={<Settings />} />
+            <Route path="meer" element={<More />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </Routes>
+      </Suspense>
+    </SheetProvider>
   )
 }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
+    <PrefsProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <Gate />
+        </AuthProvider>
+      </ToastProvider>
+    </PrefsProvider>
   )
 }

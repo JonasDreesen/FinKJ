@@ -1,114 +1,75 @@
-# Setup — Fase 1
+# FinKJ — installatie en beveiliging
 
-Stappen die jij zelf moet doen. Alles wat hier niet staat, is al door mij geregeld in de code.
+Stappen die jij zelf moet doen. Alles wat hier niet staat, zit in de code.
 
-## 1. Supabase account + project
+## 1. Database bijwerken (verplicht na deze update)
 
-1. Ga naar https://supabase.com en maak een gratis account (bv. met je Google-account).
-2. Klik op "New project".
-3. Kies een naam (bv. `finkj-budget`), een sterk database-wachtwoord (bewaar dit veilig, los van je login-wachtwoord) en een regio dicht bij jullie (bv. Frankfurt/EU).
-4. Wacht tot het project klaar is (duurt ~1-2 minuten).
+1. Supabase → **SQL Editor** → **New query**.
+2. Plak de volledige inhoud van [`docs/sql/schema.sql`](sql/schema.sql) en klik **Run**.
+3. Controle: `select * from public.app_members;` moet jullie twee accounts tonen.
 
-## 2. API-sleutels ophalen
+Dit ene script vervangt alle oude `phaseX`-scripts. Het is veilig om opnieuw uit te voeren en behoudt alle bestaande gegevens.
 
-1. Ga in je Supabase project naar **Project Settings → API**.
-2. Je hebt twee waarden nodig:
-   - **Project URL** (bv. `https://abcdefgh.supabase.co`)
-   - **anon public key** (een lange string) — dit is een publieke sleutel, veilig om in de browser te gebruiken zolang Row Level Security aanstaat (dat regel ik in de database).
-   - Gebruik NIET de `service_role` key hiervoor — die geeft volledige toegang en mag nooit in de frontend of GitHub Actions komen.
+> **Waarom dit dringend is:** met het oude schema kon *iedereen* die de publieke sleutel uit de website haalde (en die staat er altijd in) jullie gedeelde transacties en sjablonen lezen, én gedeelde transacties wijzigen of verwijderen — zonder in te loggen. Het nieuwe schema sluit dat volledig af.
 
-## 3. Lokaal testen (optioneel, voor als je zelf iets wil proberen)
+## 2. Supabase-instellingen (eenmalig, ±5 minuten)
 
-1. Kopieer `.env.example` naar `.env` in de hoofdmap van het project.
-2. Vul `VITE_SUPABASE_URL` en `VITE_SUPABASE_ANON_KEY` in met de waarden van stap 2.
-3. `.env` staat al in `.gitignore`, dus dit bestand wordt nooit meegecommit.
+In het Supabase-dashboard:
 
-## 4. Sign-up uitschakelen in Supabase
+| Waar | Instelling | Waarom |
+|---|---|---|
+| Authentication → Sign In / Providers → Email | **Allow new users to sign up: UIT** | Niemand kan zelf een account maken |
+| Authentication → Sign In / Providers | **Anonymous sign-ins: UIT** | Geen anonieme sessies |
+| Authentication → Sign In / Providers → Email | **Secure password change: AAN** | Wachtwoord wijzigen vraagt recente login |
+| Authentication → Sign In / Providers → Email | **Minimum password length: 12** | Sterkere wachtwoorden |
+| Authentication → Multi-Factor | **TOTP: aan** (standaard aan) | Tweestapsverificatie in de app |
+| Authentication → URL Configuration | **Site URL** = `https://<jouw-gebruikersnaam>.github.io/FinKJ/` | Juiste links in e-mails |
+| Advisors → Security Advisor | Moet **geen fouten** meer tonen | Controle achteraf |
 
-1. Ga naar **Authentication → Providers → Email**.
-2. Zet **"Allow new users to sign up"** UIT. Zo kan niemand — ook niet via de publieke frontend-code — zelf een account aanmaken.
+Gebruik **nooit** de `service_role`-sleutel in de app of in GitHub.
 
-## 5. Jullie twee accounts aanmaken
+## 3. Tweestapsverificatie aanzetten (sterk aangeraden)
 
-1. Ga naar **Authentication → Users**.
-2. Klik **"Add user"** → **"Create new user"**.
-3. Vul jouw e-mail + een wachtwoord in, en herhaal dit voor je vriendin.
-4. Vink **"Auto Confirm User"** aan zodat je meteen kan inloggen zonder bevestigingsmail.
+In de app: **Instellingen → Beveiliging → Tweestapsverificatie → Instellen**. Scan de QR-code met een authenticator-app (Google Authenticator, Microsoft Authenticator, 1Password…). Zodra dat aanstaat, weigert de database élke toegang tot jouw gegevens zonder de code — ook als iemand je wachtwoord kent.
 
-## 6. GitHub Secrets instellen (zodat de sleutels niet in de repo komen)
+## 4. App op je gsm zetten
 
-1. Ga naar de GitHub-repo → **Settings → Secrets and variables → Actions**.
-2. Klik **"New repository secret"** en maak er twee aan:
-   - `VITE_SUPABASE_URL` = jouw Project URL
-   - `VITE_SUPABASE_ANON_KEY` = jouw anon public key
-3. Deze secrets worden alleen tijdens het bouwen van de app door GitHub Actions gebruikt — ze zijn niet zichtbaar in de repo of voor bezoekers. Let op: de anon key komt uiteindelijk wél in de gebouwde JavaScript-bestanden terecht (dat is normaal en bedoeld — die key is alleen bruikbaar in combinatie met Row Level Security die bepaalt wie welke data mag zien).
+- **iPhone:** open de site in **Safari** → deel-knop → **Zet op beginscherm**.
+- **Android:** open de site in **Chrome** → menu (⋮) → **App installeren**.
 
-## 7. GitHub Pages inschakelen
+De app opent dan zonder adresbalk, start sneller en toont offline je laatst bekende gegevens. Nieuwe versies melden zich vanzelf ("Nieuwe versie beschikbaar → Vernieuwen").
 
-1. Ga naar **Settings → Pages**.
-2. Zet **"Source"** op **"GitHub Actions"** (niet "Deploy from a branch").
-3. Na de volgende push naar `main` bouwt en publiceert de workflow (`.github/workflows/deploy.yml`) de app automatisch.
+## 5. GitHub (enkel bij een nieuwe installatie)
 
-## 8. Testen na deze fase
+1. **Settings → Secrets and variables → Actions**: secrets `VITE_SUPABASE_URL` en `VITE_SUPABASE_ANON_KEY`.
+2. **Settings → Pages → Source: GitHub Actions**.
+3. Elke push naar `main` controleert de afhankelijkheden op lekken (`npm audit`), lint de code, bouwt en publiceert.
+4. Dependabot opent automatisch pull requests voor beveiligingsupdates; voeg die gerust samen als de controles groen zijn.
 
-- Lokaal: `npm install` dan `npm run dev`, open de getoonde localhost-URL. Je zou een login-scherm moeten zien.
-- Log in met een van de twee aangemaakte accounts → je komt in het dashboard met navigatie (Dashboard, Transacties, Budgetten, Instellingen — nog leeg).
-- Probeer een fout wachtwoord → je krijgt een foutmelding, geen toegang.
-- Er is geen "registreren"-link of -knop.
+## 6. Een lid toevoegen of wijzigen
 
-## Fase 2: database-schema voor transacties
+Maak de gebruiker aan in **Authentication → Users** en voer daarna uit:
 
-1. Ga naar je Supabase project → **SQL Editor** → **New query**.
-2. Open `docs/sql/phase2_schema.sql` uit deze repo, kopieer de volledige inhoud en plak die in de SQL Editor.
-3. Klik **Run**. Dit maakt de tabellen `categories`, `tags`, `transactions` en `transaction_tags` aan, met Row Level Security zodat persoonlijke transacties enkel voor de eigenaar zichtbaar zijn.
-4. Geen verdere actie nodig — de app praat automatisch met deze tabellen via de al ingestelde Supabase-sleutels.
+```sql
+insert into public.app_members (user_id, display_name)
+values ('<uuid uit Authentication → Users>', 'Naam');
+```
 
-## Fase 3: database-schema voor budgetten en spaardoelen
+Iemand verwijderen: `delete from public.app_members where user_id = '<uuid>';` (de persoon verliest meteen alle toegang).
 
-1. Ga naar je Supabase project → **SQL Editor** → **New query**.
-2. Open `docs/sql/phase3_schema.sql` uit deze repo, kopieer de volledige inhoud en plak die in de SQL Editor.
-3. Klik **Run**. Dit maakt de tabellen `budgets` en `savings_goals` aan.
+## 7. Lokaal ontwikkelen
 
-## Extra: bonnetje-foto's bij transacties
+```bash
+cp .env.example .env    # vul je Supabase-URL en anon key in
+npm install
+npm run dev
+```
 
-1. Ga naar je Supabase project → **SQL Editor** → **New query**.
-2. Open `docs/sql/phase5_receipts.sql` uit deze repo, kopieer de volledige inhoud en plak die in de SQL Editor.
-3. Klik **Run**. Dit voegt een `receipt_path` kolom toe aan transacties en maakt een privé opslagruimte (`receipts`) aan voor de foto's.
+## Probleem oplossen
 
-## Extra: sjablonen voor terugkerende kosten/inkomens
-
-1. Ga naar je Supabase project → **SQL Editor** → **New query**.
-2. Open `docs/sql/phase6_templates.sql` uit deze repo, kopieer de volledige inhoud en plak die in de SQL Editor.
-3. Klik **Run**. Dit maakt de tabel `transaction_templates` aan.
-
-## Extra: bevestiging van automatisch gegenereerde terugkerende boekingen
-
-1. Ga naar je Supabase project → **SQL Editor** → **New query**.
-2. Open `docs/sql/phase7_pending_review.sql` uit deze repo, kopieer de volledige inhoud en plak die in de SQL Editor.
-3. Klik **Run**. Dit voegt een `pending_review` kolom toe aan transacties.
-
-## Extra: beleggingsportefeuille
-
-1. Ga naar je Supabase project → **SQL Editor** → **New query**.
-2. Open `docs/sql/phase9_investments.sql` uit deze repo, kopieer de volledige inhoud en plak die in de SQL Editor.
-3. Klik **Run**. Dit maakt de tabel `investments` aan (volledig privé: enkel de eigenaar ziet zijn/haar eigen posities).
-
-## Extra: persoonlijke instellingen (API-key permanent bewaren)
-
-1. Ga naar je Supabase project → **SQL Editor** → **New query**.
-2. Open `docs/sql/phase10_user_settings.sql` uit deze repo, kopieer de volledige inhoud en plak die in de SQL Editor.
-3. Klik **Run**. Dit maakt de tabel `user_settings` aan, zodat je Twelve Data API-key bewaard blijft op je account (en niet enkel lokaal in één browser).
-
-## Extra: automatische tekstherkenning (OCR) op bonnetjes + zoeken
-
-1. Ga naar je Supabase project → **SQL Editor** → **New query**.
-2. Open `docs/sql/phase11_receipt_text.sql` uit deze repo, kopieer de volledige inhoud en plak die in de SQL Editor.
-3. Klik **Run**. Dit voegt een `receipt_text` kolom toe aan transacties. Wanneer je een bonnetje-foto uploadt, wordt de tekst erop automatisch herkend (in de browser, gratis, geen API-key nodig) en opgeslagen — je kan er nadien op zoeken via het zoekveld bij Transacties, en het bedrag wordt automatisch voorgesteld als het leeg is.
-
-## Extra: fiscaal jaaroverzicht + handmatige boekhouding per budget
-
-1. Ga naar je Supabase project → **SQL Editor** → **New query**.
-2. Open `docs/sql/phase12_tax_and_manual_actuals.sql` uit deze repo, kopieer de volledige inhoud en plak die in de SQL Editor.
-3. Klik **Run**. Dit voegt toe:
-   - een `tax_deductible` kolom aan categorieën — vink bij Instellingen "Fiscaal" aan bij een categorie om ze mee te nemen in het fiscaal jaaroverzicht. Bij Transacties vind je dan een knop "Fiscaal jaaroverzicht" die een CSV met alle fiscaal-aftrekbare uitgaven van het huidige jaar + totalen per categorie downloadt.
-   - een `actual_amount` kolom aan budgetten — bij elke budgetregel op de Budgetten-pagina kan je nu ook een "werkelijke uitgave (handmatig)" invullen, voor als je niet elke uitgave als losse transactie wil invoeren maar toch een correcte boekhouding per categorie per maand wil bijhouden. Zolang dit veld leeg is, blijft het automatisch berekende bedrag (op basis van je transacties) gebruikt worden.
+| Melding in de app | Oplossing |
+|---|---|
+| "Database nog niet ingericht" | Stap 1 uitvoeren |
+| "Geen toegang" | Je account staat niet in `app_members` → stap 6 |
+| Tweestapsverificatie kwijt (gsm verloren) | Supabase → Authentication → Users → gebruiker → MFA-factor verwijderen |
+| "Dubbele terugkerende boekingen gevonden" bij het script | Verwijder de dubbele boekingen en voer het script opnieuw uit |

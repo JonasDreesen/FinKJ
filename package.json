@@ -1,28 +1,34 @@
 {
   "name": "finkj-budget-planner",
   "private": true,
-  "version": "0.1.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
+    "ocr-assets": "node scripts/copy-ocr-assets.mjs",
+    "predev": "npm run ocr-assets",
     "dev": "vite",
+    "prebuild": "npm run ocr-assets",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint ."
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.4",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@supabase/supabase-js": "^2.119.0",
     "lucide-react": "^1.34.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.26.2",
+    "react-router-dom": "^7.18.5",
     "recharts": "^3.10.0",
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.0",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "@tesseract.js-data/nld": "^1.0.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.1",
+    "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.9.0",
     "eslint-plugin-react": "^7.35.0",
@@ -31,6 +37,7 @@
     "globals": "^15.9.0",
     "postcss": "^8.4.41",
     "tailwindcss": "^3.4.10",
-    "vite": "^5.4.1"
+    "vite": "^6.4.5",
+    "vite-plugin-pwa": "^1.3.0"
   }
 }

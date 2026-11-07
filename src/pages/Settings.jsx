@@ -1,361 +1,96 @@
 import { useState } from 'react'
-import { useCategories } from '../hooks/useCategories'
-import { useTags } from '../hooks/useTags'
-import { useTemplates } from '../hooks/useTemplates'
+import { Info, Palette, UserRound } from 'lucide-react'
+import { Card, CardHeader, Field, PageHeader, Segmented, Switch } from '../components/ui'
+import SecuritySettings from '../components/settings/SecuritySettings'
+import ListSettings from '../components/settings/ListSettings'
+import DataSettings from '../components/settings/DataSettings'
+import InstallCard from '../components/InstallCard'
 import { useAuth } from '../context/AuthContext'
-import { friendlyError } from '../lib/errors'
-import { downloadJson, fetchFullBackup } from '../lib/backup'
-import { useUndoableDelete } from '../hooks/useUndoableDelete'
+import { usePrefs } from '../context/PrefsContext'
+import { useToast } from '../context/ToastContext'
+import { useMembers } from '../hooks/useData'
+import * as api from '../lib/api'
 
-function formatAmount(amount) {
-  return new Intl.NumberFormat('nl-BE', { style: 'currency', currency: 'EUR' }).format(amount)
-}
+function ProfileCard() {
+  const { user } = useAuth()
+  const { me } = useMembers()
+  const { toast, showError } = useToast()
+  const [name, setName] = useState(null)
+  const value = name ?? me?.display_name ?? ''
 
-function NameList({ title, items, onAdd, onDelete, currentUserId }) {
-  const [name, setName] = useState('')
-  const [error, setError] = useState('')
-  const deletion = useUndoableDelete(onDelete)
-
-  async function handleAdd(e) {
+  async function save(e) {
     e.preventDefault()
-    if (!name.trim()) return
-    const { error } = await onAdd(name.trim())
-    if (error) {
-      setError(friendlyError(error, 'Kon niet toevoegen.'))
-    } else {
-      setError('')
-      setName('')
+    if (!value.trim()) return
+    try {
+      await api.updateDisplayName(user.id, value)
+      setName(null)
+      toast('Naam opgeslagen')
+    } catch (error) {
+      showError(error)
     }
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
-      <h2 className="mb-3 font-semibold">{title}</h2>
-      <form onSubmit={handleAdd} className="mb-3 flex gap-2">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Naam"
-          className="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
-        />
-        <button
-          type="submit"
-          className="rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-3 py-1.5 text-sm text-white hover:bg-brand-600"
-        >
-          Toevoegen
+    <Card className="p-5">
+      <CardHeader title="Profiel" subtitle={user?.email} icon={UserRound} />
+      <form onSubmit={save} className="flex items-end gap-2">
+        <Field label="Weergavenaam" className="flex-1">
+          <input className="input" maxLength={40} value={value} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <button className="btn btn-primary" disabled={name === null || !value.trim()}>
+          Opslaan
         </button>
       </form>
-      {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
-      <ul className="space-y-1">
-        {items.map((item) =>
-          deletion.isPending(item.id) ? (
-            <li
-              key={item.id}
-              className="flex items-center justify-between rounded-md bg-gray-50 px-2 py-1 text-sm text-gray-500 dark:bg-gray-900 dark:text-gray-400"
-            >
-              <span className="line-through">{item.name}</span>
-              <button
-                onClick={() => deletion.undo(item.id)}
-                className="text-xs font-medium text-brand-500 hover:underline"
-              >
-                Ongedaan maken
-              </button>
-            </li>
-          ) : (
-            <li
-              key={item.id}
-              className="flex items-center justify-between rounded-md px-2 py-1 text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-              <span>{item.name}</span>
-              {item.user_id === currentUserId && (
-                <button
-                  onClick={() => deletion.scheduleDelete(item.id)}
-                  className="text-xs text-red-600 hover:underline"
-                >
-                  Verwijderen
-                </button>
-              )}
-            </li>
-          ),
-        )}
-        {items.length === 0 && <li className="text-sm text-gray-400">Nog niets toegevoegd.</li>}
-      </ul>
-    </div>
+    </Card>
   )
 }
 
-function CategoryList({ items, onAdd, onDelete, onUpdate, currentUserId }) {
-  const [name, setName] = useState('')
-  const [error, setError] = useState('')
-  const deletion = useUndoableDelete(onDelete)
-
-  async function handleAdd(e) {
-    e.preventDefault()
-    if (!name.trim()) return
-    const { error } = await onAdd(name.trim())
-    if (error) {
-      setError(friendlyError(error, 'Kon niet toevoegen.'))
-    } else {
-      setError('')
-      setName('')
-    }
-  }
-
+function AppearanceCard() {
+  const { theme, setTheme, privacy, setPrivacy } = usePrefs()
   return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
-      <h2 className="mb-3 font-semibold">Categorieën</h2>
-      <form onSubmit={handleAdd} className="mb-3 flex gap-2">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Naam"
-          className="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
+    <Card className="p-5">
+      <CardHeader title="Weergave" icon={Palette} />
+      <div className="space-y-4">
+        <Segmented
+          className="w-full"
+          value={theme}
+          onChange={setTheme}
+          options={[
+            { value: 'light', label: 'Licht' },
+            { value: 'dark', label: 'Donker' },
+            { value: 'system', label: 'Automatisch' },
+          ]}
         />
-        <button
-          type="submit"
-          className="rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-3 py-1.5 text-sm text-white hover:bg-brand-600"
-        >
-          Toevoegen
-        </button>
-      </form>
-      {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
-      <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-        Vink "fiscaal" aan voor categorieën die je wil meenemen in het fiscaal jaaroverzicht (bv.
-        kinderopvang, giften).
-      </p>
-      <ul className="space-y-1">
-        {items.map((item) =>
-          deletion.isPending(item.id) ? (
-            <li
-              key={item.id}
-              className="flex items-center justify-between rounded-md bg-gray-50 px-2 py-1 text-sm text-gray-500 dark:bg-gray-900 dark:text-gray-400"
-            >
-              <span className="line-through">{item.name}</span>
-              <button
-                onClick={() => deletion.undo(item.id)}
-                className="text-xs font-medium text-brand-500 hover:underline"
-              >
-                Ongedaan maken
-              </button>
-            </li>
-          ) : (
-            <li
-              key={item.id}
-              className="flex items-center justify-between rounded-md px-2 py-1 text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-              <span>{item.name}</span>
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                  <input
-                    type="checkbox"
-                    checked={!!item.tax_deductible}
-                    onChange={(e) => onUpdate(item.id, { tax_deductible: e.target.checked })}
-                  />
-                  Fiscaal
-                </label>
-                {item.user_id === currentUserId && (
-                  <button
-                    onClick={() => deletion.scheduleDelete(item.id)}
-                    className="text-xs text-red-600 hover:underline"
-                  >
-                    Verwijderen
-                  </button>
-                )}
-              </div>
-            </li>
-          ),
-        )}
-        {items.length === 0 && <li className="text-sm text-gray-400">Nog niets toegevoegd.</li>}
-      </ul>
-    </div>
-  )
-}
-
-function TemplateManager({ categories, currentUserId }) {
-  const { templates, addTemplate, deleteTemplate } = useTemplates()
-  const deletion = useUndoableDelete(deleteTemplate)
-  const [name, setName] = useState('')
-  const [type, setType] = useState('expense')
-  const [amount, setAmount] = useState('')
-  const [categoryId, setCategoryId] = useState('')
-  const [isShared, setIsShared] = useState(false)
-  const [error, setError] = useState('')
-
-  async function handleAdd(e) {
-    e.preventDefault()
-    if (!name.trim() || !amount || Number(amount) <= 0) {
-      setError('Vul een naam en een geldig bedrag in.')
-      return
-    }
-    const { error } = await addTemplate({
-      name: name.trim(),
-      type,
-      amount: Number(amount),
-      categoryId,
-      isShared,
-    })
-    if (error) {
-      setError(friendlyError(error, 'Kon niet toevoegen.'))
-    } else {
-      setError('')
-      setName('')
-      setAmount('')
-      setCategoryId('')
-      setIsShared(false)
-    }
-  }
-
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
-      <h2 className="mb-1 font-semibold">Sjablonen</h2>
-      <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
-        Voor kosten/inkomens die iedereen heeft, zoals loon, huur of abonnementen. Zichtbaar voor
-        jullie beiden; met één klik vooraf ingevuld op de Transacties-pagina.
-      </p>
-      <form onSubmit={handleAdd} className="mb-3 space-y-2">
-        <div className="grid gap-2 sm:grid-cols-2">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Naam (bv. Loon, Huur)"
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
-          />
-          <input
-            type="number"
-            step="0.01"
-            min="0.01"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="Bedrag (€)"
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
-          />
-        </div>
-        <div className="grid gap-2 sm:grid-cols-2">
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
-          >
-            <option value="expense">Uitgave</option>
-            <option value="income">Inkomst</option>
-          </select>
-          <select
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
-          >
-            <option value="">Geen categorie</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={isShared} onChange={(e) => setIsShared(e.target.checked)} />
-          Standaard gedeeld
-        </label>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button
-          type="submit"
-          className="rounded-pill bg-brand-500 shadow-sm transition hover:shadow px-3 py-1.5 text-sm text-white hover:bg-brand-600"
-        >
-          Sjabloon toevoegen
-        </button>
-      </form>
-      <ul className="space-y-1">
-        {templates.map((tpl) =>
-          deletion.isPending(tpl.id) ? (
-            <li
-              key={tpl.id}
-              className="flex items-center justify-between rounded-md bg-gray-50 px-2 py-1 text-sm text-gray-500 dark:bg-gray-900 dark:text-gray-400"
-            >
-              <span className="line-through">{tpl.name}</span>
-              <button
-                onClick={() => deletion.undo(tpl.id)}
-                className="text-xs font-medium text-brand-500 hover:underline"
-              >
-                Ongedaan maken
-              </button>
-            </li>
-          ) : (
-            <li
-              key={tpl.id}
-              className="flex items-center justify-between rounded-md px-2 py-1 text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-              <span>
-                {tpl.name} — {formatAmount(tpl.amount)} ({tpl.type === 'income' ? 'inkomst' : 'uitgave'})
-              </span>
-              {tpl.user_id === currentUserId && (
-                <button
-                  onClick={() => deletion.scheduleDelete(tpl.id)}
-                  className="text-xs text-red-600 hover:underline"
-                >
-                  Verwijderen
-                </button>
-              )}
-            </li>
-          ),
-        )}
-        {templates.length === 0 && <li className="text-sm text-gray-400">Nog geen sjablonen.</li>}
-      </ul>
-    </div>
+        <Switch
+          checked={privacy}
+          onChange={setPrivacy}
+          label="Bedragen verbergen"
+          description="Handig op de trein of als iemand meekijkt. Tik op een bedrag om het even te zien."
+        />
+      </div>
+    </Card>
   )
 }
 
 export default function Settings() {
-  const { session } = useAuth()
-  const { categories, addCategory, deleteCategory, updateCategory } = useCategories()
-  const { tags, addTag, deleteTag } = useTags()
-  const [backupBusy, setBackupBusy] = useState(false)
-
-  async function handleBackup() {
-    setBackupBusy(true)
-    const data = await fetchFullBackup()
-    downloadJson(`finkj-backup-${new Date().toISOString().slice(0, 10)}.json`, data)
-    setBackupBusy(false)
-  }
-
   return (
-    <div>
-      <h1 className="page-title mb-4">Instellingen</h1>
-      <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-        Categorieën, tags en sjablonen zijn zichtbaar voor jullie beiden, maar enkel de maker kan
-        ze verwijderen.
+    <div className="space-y-5">
+      <PageHeader title="Instellingen" />
+      <div className="grid gap-5 lg:grid-cols-2">
+        <div className="space-y-5">
+          <ProfileCard />
+          <SecuritySettings />
+          <AppearanceCard />
+          <InstallCard />
+        </div>
+        <div className="space-y-5">
+          <ListSettings />
+          <DataSettings />
+        </div>
+      </div>
+      <p className="flex items-center justify-center gap-1.5 pt-2 text-xs text-muted">
+        <Info size={12} /> FinKJ {__APP_VERSION__} · je gegevens staan versleuteld in jullie eigen Supabase-project
       </p>
-      <div className="mb-4 grid gap-4 sm:grid-cols-2">
-        <CategoryList
-          items={categories}
-          onAdd={addCategory}
-          onDelete={deleteCategory}
-          onUpdate={updateCategory}
-          currentUserId={session?.user?.id}
-        />
-        <NameList
-          title="Tags"
-          items={tags}
-          onAdd={addTag}
-          onDelete={deleteTag}
-          currentUserId={session?.user?.id}
-        />
-      </div>
-      <TemplateManager categories={categories} currentUserId={session?.user?.id} />
-
-      <div className="mt-4 rounded-xl border border-gray-200 bg-white shadow-sm p-4 dark:border-gray-700 dark:bg-gray-800">
-        <h2 className="mb-1 font-semibold">Volledige back-up</h2>
-        <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
-          Download al je zichtbare data (categorieën, tags, transacties, budgetten, spaardoelen,
-          sjablonen) als één JSON-bestand. Handig als extra vangnet naast Supabase zelf.
-        </p>
-        <button
-          onClick={handleBackup}
-          disabled={backupBusy}
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600"
-        >
-          {backupBusy ? 'Bezig...' : 'Back-up downloaden (JSON)'}
-        </button>
-      </div>
     </div>
   )
 }
